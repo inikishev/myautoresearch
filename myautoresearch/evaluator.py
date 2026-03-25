@@ -1,12 +1,14 @@
-import sys
 import os
-from pathlib import Path
-import numpy as np
+import sys
 from abc import ABC, abstractmethod
+from pathlib import Path
+from typing import Any, Literal
+
+import numpy as np
 
 from . import utils
 from .logger import Logger
-from typing import Any
+
 
 class Metric:
     def __init__(self, name: str, value, maximize: bool | None, is_main: bool, display: bool):
@@ -70,7 +72,7 @@ class Evaluator(ABC):
 
 
 class FinishedRun:
-    submitted: bool
+    status: Literal["unsubmitted", "submitted", "discarded", "current"]
     def __init__(self, path: str | os.PathLike):
         self.path = Path(path)
         self.info = utils.read_json(self.path / "info.json")

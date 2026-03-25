@@ -2,12 +2,17 @@ import argparse
 import importlib.util
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
+import click
 import numpy as np
 import psutil
+import yaml
 
+
+class NoStackTraceException(Exception): pass
 
 def read_json(file: str | os.PathLike):
     with open(file, "r", encoding='utf-8') as f:
@@ -17,6 +22,13 @@ def write_json(obj, file: str | os.PathLike):
     with open(file, "w", encoding='utf-8') as f:
         json.dump(obj, f, sort_keys=False, indent=4, ensure_ascii=False)
 
+def read_yaml(file: str | os.PathLike):
+    with open(file, "r", encoding='utf-8') as f:
+        return yaml.safe_load(f)
+
+def write_yaml(obj, file: str | os.PathLike):
+    with open(file, "w", encoding='utf-8') as f:
+        yaml.safe_dump(obj, f, sort_keys=False, indent=4)
 
 def import_object(argv: list[str]):
 
@@ -43,8 +55,10 @@ def import_object(argv: list[str]):
 
     # Execute module and return object
     spec.loader.exec_module(module)
-    return getattr(module, args.object)
-
+    object = getattr(module, args.object)
+    if object is None:
+        raise NoStackTraceException(f"Submitted file doesn't contain `{object}` or it is None.")
+    return object
 
 def format_value(x):
     if isinstance(x, np.ndarray) and x.size == 1: x = x.item()
@@ -62,6 +76,7 @@ def write_text(text: str, file: str | os.PathLike):
 
 def make_valid_filename(s: str):
     c = ''.join(c for c in s if c.isalnum() or c in (" .,"))[:100]
+    while not c[0].isalnum(): c = c[1:]
     while not c[-1].isalnum(): c = c[:-1]
     return c
 
