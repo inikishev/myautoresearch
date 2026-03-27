@@ -73,7 +73,7 @@ n_neighbors: 2
 
 The `scripts/evaluate.py` file defines how algorithms are evaluated. Edit this file to match your problem.
 
-First, decide what the agent should submit (e.g., a class, function, or object). The evaluation script will evaluate this object. It can technically be a numpy array or a string depending on your problem, but usually it's going to be a class, an instantiated class, or a function. In that case, it may be a good idea to write down a stub for it.
+First, decide on what the agent should submit as the solution. Usually it's going to be a class, an instantiated class, or a function, although it may be something else like a string or a numpy array depending on the problem. if applicable, it may be a good idea to write down a stub for it.
 
 Then you can define the `run` method on the evaluator, where the object submitted by the AI agent will be in the `object` attribute:
 
@@ -139,11 +139,14 @@ class Evaluator:
                 If there are multiple main metrics, an average rank is computed from their ranks.
                 But it is usually a good idea to manually design a formula to compute a final score,
                 and use that score as the only main metric. Defaults to True.
-            display_value: Show this metric in run summary. Defaults to True.
-            display_rank: Show this metric rank in run summary. Defaults to True.
-            display_leaderboard: Show this metric in leaderboard.
-                Keep the number of metrics in the leaderboard under 4. Defaults to True.
-            display_summary: Show this metric in summary.
+            display_value: Show this metric after a run is evaluated.
+                In most cases it is fine to set this to True on all metrics. Defaults to True.
+            display_rank: Show this metric rank and name of best run by this metric after a run is evaluated.
+                Defaults to True.
+            display_leaderboard: Show this metric for all other runs in the leaderboard after a run is evaluated.
+                Keep the number of metrics in the leaderboard under 4 to make it more readable. Defaults to True.
+            display_summary: Show this metric for all submited runs in the summary shown when agent runs `mar start`.
+                Keep the number of metrics in the summary under 10 to avoid filling the context with large number of submissions.
             weight: This metric's weight for computing average rank from main metrics. Defaults to 1.0.
         """
 

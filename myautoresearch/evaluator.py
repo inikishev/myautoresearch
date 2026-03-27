@@ -35,22 +35,25 @@ class Evaluator(ABC):
         display_summary: bool = True,
         weight: float = 1,
     ):
-        """Log a final metric.
+        """Log a final metric. At least one main metric must be logged so that solutions can be compared.
 
         Args:
-            metric: name of the metric
-            value: value
+            metric: Name of the metric.
+            value: Value of the metric.
             maximize: `True` if higher is better, `False` if lower is better, `None` if not numeric.
             is_main: At least one metric should be main to rank the runs.
                 If there are multiple main metrics, an average rank is computed from their ranks.
                 But it is usually a good idea to manually design a formula to compute a final score,
                 and use that score as the only main metric. Defaults to True.
-            display_value: Show this metric in run summary. Defaults to True.
-            display_rank: Show this metric rank in run summary. Defaults to True.
-            display_leaderboard: Show this metric in leaderboard.
-                Keep the number of metrics in the leaderboard under 4. Defaults to True.
-            display_summary: Show this metric in summary.
-            weight: this metric's weight for computing average rank from main metrics. Defaults to 1.0
+            display_value: Show this metric after a run is evaluated.
+                In most cases it is fine to set this to True on all metrics. Defaults to True.
+            display_rank: Show this metric rank and name of best run by this metric after a run is evaluated.
+                Defaults to True.
+            display_leaderboard: Show this metric for all other runs in the leaderboard after a run is evaluated.
+                Keep the number of metrics in the leaderboard under 4 to make it more readable. Defaults to True.
+            display_summary: Show this metric for all submited runs in the summary shown when agent runs `mar start`.
+                Keep the number of metrics in the summary under 10 to avoid filling the context with large number of submissions.
+            weight: This metric's weight for computing average rank from main metrics. Defaults to 1.0.
         """
         self._metrics[metric] = _utils.Metric(
             name = metric,
