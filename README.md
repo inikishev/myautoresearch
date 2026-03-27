@@ -18,7 +18,7 @@ The agent will see the metrics and a leaderboard comparing the solution to other
 mar submit --name run_name --result "description and results of the experiments"
 ```
 
-Only submitted solutions are shown in `mar start`. This prevents spamming context with similar versions of the same algorithm. `mar start` also moves all unsubmitted solutions from the previous session to discarded, hiding them from the leaderboard.
+Only submitted solutions are shown in `mar start`. This prevents spamming context with similar versions of the same algorithm. `mar start` also moves all unsubmitted solutions from the previous session to discarded, this means the agent only sees its attempts and all submitted runs in the leaderboard.
 
 ## How to use
 
@@ -31,13 +31,13 @@ project/
 ├── workdir/              # Working directory
 ├── runs/
 │   ├── unsubmitted/      # Runs not yet submitted
-│   ├── submitted/        # Submitted runs (appear in leaderboard)
+│   ├── submitted/        # Submitted runs (appear in summary and leaderboard)
 │   └── discarded/        # Discarded runs (kept for reference)
 ├── templates/
 │   ├── workdir/          # Template files copied to working directory on `mar start`
 │   └── eval/             # Template files copied to evaluation run directories
 ├── scripts/
-│   ├── initialize.py     # Empty initialization script (run on `mar start`)
+│   ├── initialize.py     # Empty initialization script (runs on `mar start`)
 │   └── evaluate.py       # Evaluation script template
 ├── task.md               # Problem description for the AI agent
 └── config.yaml           # Configuration file
@@ -61,13 +61,14 @@ author: "Qwen3.5"
 max_time: 60
 
 # Timeout for evaluation (hard limit). Setting to twice the max_time is good
-# to allow the agent to see what the metrics even if run is infeasible.
+# to allow the agent to see the metrics even if run is infeasible.
 timeout: 120
 
 # Number of top runs to show in leaderboard.
 top_k: 10
 
-# Number of neighboring runs to show for current run, if run is not in `top_k`
+# If a run is not in top_k runs, it will show it at the bottom of the leaderboard
+# along with this many neighboring runs by rank
 n_neighbors: 2
 ```
 
