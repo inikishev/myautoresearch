@@ -76,7 +76,7 @@ n_neighbors: 2
 
 The `scripts/evaluate.py` file defines how algorithms are evaluated. Edit this file to match your problem.
 
-First, decide on what the agent should submit as the solution. Usually it's going to be a class, an instantiated class, or a function, although it may be something else like a string or a numpy array depending on the problem. if applicable, it may be a good idea to write down a stub for it.
+First, decide on what the agent should submit as the solution. Usually it's going to be a class, an instantiated class, or a function, although it may be something else like a string or a numpy array depending on the problem. If applicable, it may be a good idea to write down a stub for it.
 
 Then you can define the `run` method on the evaluator, where the object submitted by the AI agent will be in the `object` attribute:
 
