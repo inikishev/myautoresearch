@@ -64,7 +64,7 @@ def mar_init(preset: str | None = None):
     # readme
     if not (root / "README.md").exists():
         _utils.write_text(
-            r"<!-- This file is not shown to the AI agent. You can copy the prompt from here. -->\n## Prompt:\n\nYour goal will be to develop <describe the task>. Run `mar start` in the shell and follow the instructions.",
+            r"<!-- This file is not shown to the AI agent. You can copy the prompt from here. -->\n## Prompt:\nYour goal will be to develop <describe the task>. Run `mar start` in the shell and follow the instructions.",
             root / "README.md"
         )
 
