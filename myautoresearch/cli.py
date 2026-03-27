@@ -41,7 +41,7 @@ def summary():
 @click.option('-f', '--file', "file", help='Relative path to the python file to submit for evaluation, e.g. "algorithm.py"', type=str)
 @click.option('-o', '--object', "object", help="Name of the item that will be imported from specified file and evaluated.", type=str)
 @click.option('-n', '--name', "name", help="Unique name for this run.", type=str)
-@click.option('-d', '--description', "description", help="Short description of this run in one or a few sentences.", type=str, default="")
+@click.option('-d', '--description', "description", help="Describe your algorithm. The description should be concise but detailed, it needs to contain all information necessary to recreate the run.", type=str, default="")
 @click.option('-e', '--extra-files', "extra_files", help="Relative path to an additional file or folder to include in the submission, this argument can be repeated if multiple items need to be included.", type=str, multiple=True)
 @click.option('--overwrite', "overwrite", help="If this flag is specified, if an unsubmitted run with the same name exists, it will be overwritten.", is_flag=True)
 @click.option('-b', '--baseline', "baseline", hidden=True, is_flag=True)
@@ -72,7 +72,7 @@ def evaluate(
 
 @mar.command("submit")
 @click.option('-n', '--name', "name", help="Name for this algorithm/run, should be the same as one passed to `run` command.", type=str)
-@click.option('-r', '--result', "result", help="Short summary of results of this run in one or a few sentences.", type=str)
+@click.option('-r', '--result', "result", help="Describe results of your experiments - what did you try, what worked, what didn't work, did your best attempt beat current leader, can it be improved. This will be shown in previously submitted runs summary next to the description. The summary already shows all metric values, don't duplicate them here.", type=str)
 def cli_submit(name: str, result: str | None):
     with no_stack_trace():
         return commands.mar_submit(name=name, result=result)
@@ -127,7 +127,20 @@ def cli_config(
     )
 
 @mar.command("discard")
-@click.argument('names', nargs=-1)
+@click.argument('names', nargs=-1, type=str)
 def cli_discard(names: tuple[str]):
     for name in names:
         commands.mar_discard(name)
+
+
+@mar.command("reevaluate")
+def cli_reevaluate():
+    commands.mar_reevaluate()
+
+
+
+@mar.command("rename")
+@click.argument('old', type=str)
+@click.argument('new', type=str)
+def cli_rename(old: str, new: str):
+    commands.mar_rename(old=old, new=new)

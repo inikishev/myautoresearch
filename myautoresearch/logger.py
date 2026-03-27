@@ -1,4 +1,5 @@
 """logger from visualbench"""
+import os
 import warnings
 from collections import UserDict
 from collections.abc import Mapping
@@ -29,6 +30,10 @@ class Logger(UserDict[str, dict[int, Any]]):
     def max(self, metric): return np.max(self.to_list(metric))
     def nanmax(self, metric): return np.nanmax(self.to_list(metric))
     def sum(self, metric): return np.sum(self.to_list(metric))
+    def nansum(self, metric): return np.nansum(self.to_list(metric))
+    def mean(self, metric): return np.mean(self.to_list(metric))
+    def nanmean(self, metric): return np.nanmean(self.to_list(metric))
+
 
     def interp(self, metric: str) -> np.ndarray:
         """Returns a list of values for a given key, interpolating missing steps."""
@@ -51,7 +56,7 @@ class Logger(UserDict[str, dict[int, Any]]):
         return self[metric][steps[int(idx)]]
 
 
-    def save(self, fname: str):
+    def save(self, fname: str | os.PathLike):
         """Save this logger to a compressed numpy array file (npz)."""
         arrays = {}
 
@@ -65,7 +70,7 @@ class Logger(UserDict[str, dict[int, Any]]):
 
         np.savez_compressed(fname, **arrays)
 
-    def load(self, fname: str, allow_pickle=False):
+    def load(self, fname: str | os.PathLike, allow_pickle=False):
         """Load data from a compressed numpy array file (npz) to this logger."""
         arrays: Mapping[str, np.ndarray] = np.load(fname, allow_pickle=allow_pickle)
         for k, array in arrays.items():
@@ -75,7 +80,7 @@ class Logger(UserDict[str, dict[int, Any]]):
                 self[name] = dict(zip(array, values))
 
     @classmethod
-    def from_file(cls, fname: str):
+    def from_file(cls, fname: str | os.PathLike):
         logger = cls()
         logger.load(fname)
         return logger

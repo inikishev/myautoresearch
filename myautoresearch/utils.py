@@ -75,7 +75,7 @@ def write_text(text: str, file: str | os.PathLike):
 
 
 def make_valid_filename(s: str):
-    c = ''.join(c for c in s if c.isalnum() or c in (" .,"))[:100]
+    c = ''.join(c for c in s if c.isalnum() or c in (" .,-()_"))[:100]
     while not c[0].isalnum(): c = c[1:]
     while not c[-1].isalnum(): c = c[:-1]
     return c
