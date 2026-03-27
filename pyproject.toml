@@ -17,6 +17,10 @@ requires-python = ">=3.12"
 dependencies = [
     "numpy",
     "matplotlib",
+    "pyyaml",
+    "click",
+    "psutil",
+    "scipy",
 ]
 readme = "README.md"
 authors = [

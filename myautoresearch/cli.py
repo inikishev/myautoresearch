@@ -4,13 +4,14 @@ from typing import Literal
 
 import click
 from contextlib import contextmanager
-from . import commands, utils
+from . import _utils, commands
 
 @contextmanager
 def no_stack_trace():
+    """Removes stack trace from mar exceptions to avoid useless tokens"""
     try:
         yield
-    except utils.NoStackTraceException as e:
+    except _utils.NoStackTraceException as e:
         print(f"ERROR: {e}")
 
 @click.group('mar')
@@ -20,20 +21,20 @@ def mar():
 
 @mar.command("init")
 @click.argument('work_dir_name', type=str, default="workdir")
-def init(work_dir_name: str):
+def cli_init(work_dir_name: str):
     with no_stack_trace():
         commands.mar_init(work_dir_name)
         click.echo("New project has been initialized.")
 
 @mar.command("start")
 @click.argument('modifier', default=None)
-def start(modifier: commands.ModifierLiteral | None = None):
+def cli_start(modifier: commands.ModifierLiteral | None = None):
     with no_stack_trace():
-        commands.mar_clear()
+        commands.mar_start()
         click.echo(commands.mar_prompt(modifier))
 
 @mar.command("summary")
-def summary():
+def cli_summary():
     with no_stack_trace():
         click.echo(commands.mar_summary())
 
@@ -42,8 +43,9 @@ def summary():
 @click.option('-o', '--object', "object", help="Name of the item that will be imported from specified file and evaluated.", type=str)
 @click.option('-n', '--name', "name", help="Unique name for this run.", type=str)
 @click.option('-d', '--description', "description", help="Describe your algorithm. The description should be concise but detailed, it needs to contain all information necessary to recreate the run.", type=str, default="")
-@click.option('-e', '--extra-files', "extra_files", help="Relative path to an additional file or folder to include in the submission, this argument can be repeated if multiple items need to be included.", type=str, multiple=True)
+@click.option('-e', '--extra-files', "extra_files", help="Include additional files needed for evaluation (e.g., helper modules, data files), this argument can be repeated if multiple items need to be included.", type=str, multiple=True)
 @click.option('--overwrite', "overwrite", help="If this flag is specified, if an unsubmitted run with the same name exists, it will be overwritten.", is_flag=True)
+# hidden flags - only human can use them
 @click.option('-b', '--baseline', "baseline", hidden=True, is_flag=True)
 @click.option('-s', '--submit', "submit", hidden=True, is_flag=True)
 def evaluate(
@@ -94,12 +96,6 @@ def cli_list(status: Literal["unsubmitted", "submitted", "discarded", "all"]):
 def cli_leaderboard(status: Literal["unsubmitted", "submitted", "discarded", "all"]):
     with no_stack_trace():
         commands.mar_display_leaderboard(status)
-
-@mar.command("clear")
-def cli_clear():
-    with no_stack_trace():
-        commands.mar_clear()
-        click.echo("Working directory cleared!")
 
 @mar.command("load")
 @click.argument('name', default=None)

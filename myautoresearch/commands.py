@@ -1,26 +1,22 @@
-import warnings
 import math
 import os
 import shutil
 import subprocess
 import sys
 import time
-from typing import Literal
-from collections import defaultdict
+import warnings
 from datetime import datetime
 from pathlib import Path
+from typing import Literal
 
 import click
 import numpy as np
-import polars as pl
-import psutil
 import yaml
-from scipy.stats import rankdata
 
-from . import utils
+from . import _utils
 from .evaluate_template import EVALUATE_TEMPLATE
-from .evaluator import Evaluator, FinishedRun, Metric
 from .logger import Logger
+
 
 def _toint(x):
     if math.isfinite(x): return int(x)
@@ -31,7 +27,7 @@ def _maybe_strip(s):
     return s
 
 def _get_root_and_config() -> tuple[Path, dict]:
-    root = utils.get_cwd().parent
+    root = _utils.get_cwd().parent
 
     # Load config
     with open(root / "config.yaml", encoding='utf-8') as f:
@@ -40,7 +36,7 @@ def _get_root_and_config() -> tuple[Path, dict]:
     # Check that work dir is correct
     work_dir_name = config.get("work_dir", "workdir")
     if os.path.normpath(os.getcwd()) != os.path.normpath(root / work_dir_name):
-        raise utils.NoStackTraceException(f'Working directory must be {root / work_dir_name}, but it is {os.getcwd()}')
+        raise _utils.NoStackTraceException(f'Working directory must be {root / work_dir_name}, but it is {os.getcwd()}')
 
     return root, config
 
@@ -49,7 +45,7 @@ def mar_init(preset: str | None = None):
     """Initializes a new project."""
     # TODO: add presets
 
-    root = utils.get_cwd()
+    root = _utils.get_cwd()
 
     # workdir
     (root / "workdir").mkdir(exist_ok=True)
@@ -65,16 +61,23 @@ def mar_init(preset: str | None = None):
     (root / "templates" / "workdir").mkdir(exist_ok=True)
     (root / "templates" / "eval").mkdir(exist_ok=True)
 
+    # readme
+    if not (root / "README.md").exists():
+        _utils.write_text(
+            r"<!-- This file is not shown to the AI agent. You can copy the prompt from here. -->\n## Prompt:\n\nYour goal will be to develop <describe the task>. Run `mar start` in the shell and follow the instructions.",
+            root / "README.md"
+        )
+
     # prompts
-    if not (root / "task.md").exists(): utils.write_text("# Task", root / "task.md")
+    if not (root / "task.md").exists(): _utils.write_text("# Task\n\n# API\n\n# Evaluation metric\n\n", root / "task.md")
 
     # scripts
     (root / "scripts").mkdir(exist_ok=True)
     if not (root / "scripts" / "initialize.py").exists():
-        utils.write_text("# initialization script", root /  "scripts" / "initialize.py")
+        _utils.write_text("# initialization script", root /  "scripts" / "initialize.py")
 
     if not (root /  "scripts" / "evaluate.py").exists():
-        utils.write_text(EVALUATE_TEMPLATE, root /  "scripts" / "evaluate.py")
+        _utils.write_text(EVALUATE_TEMPLATE, root /  "scripts" / "evaluate.py")
 
     # config
     if not(root / "config.yaml").exists():
@@ -88,58 +91,8 @@ def mar_init(preset: str | None = None):
             n_neighbors = 2,
         )
 
-        utils.write_yaml(config, root / "config.yaml")
+        _utils.write_yaml(config, root / "config.yaml")
 
-def _process_metrics(runs: list[FinishedRun]):
-    # Find ranks of each run by each main metric
-    # First we need to get a list of main metrics
-    main_metric_names = set()
-    value_metric_names = set()
-    rank_metric_names = set()
-    weights = {}
-    for run in runs:
-        main_metric_names.update(name for name, metric in run.metrics.items() if metric.is_main)
-        value_metric_names.update(name for name, metric in run.metrics.items() if metric.display_value)
-        rank_metric_names.update(name for name, metric in run.metrics.items() if metric.display_rank)
-        weights.update({metric.name: metric.weight for metric in run.metrics.values()})
-
-    # Load values of rank metrics for each run
-    rank_errors = defaultdict(list)
-    for run in runs:
-        for metric in sorted(rank_metric_names):
-            if metric in run.metrics:
-                rank_errors[metric].append(run.metrics[metric].error())
-            else:
-                rank_errors[metric].append(np.nan)
-
-    # Compute ranks (index of run in `runs` is index of rank in each list)
-    ranks = {k: rankdata(v, method='dense', nan_policy='omit') for k,v in rank_errors.items()}
-
-    if len(ranks) > 1 and len(main_metric_names) > 1:
-        mean_ranks = []
-        for i, run in enumerate(runs):
-            run_ranks = []
-            weight_sum = 0
-            for metric_name in sorted(main_metric_names):
-                weight = weights[metric_name]
-                weight_sum += weight
-                if metric_name in run.metrics:
-                    run_ranks.append(ranks[metric_name][i] * weight)
-                else:
-                    run_ranks.append(len(runs) * weight)
-
-            mean_ranks.append(np.sum(run_ranks) / weight_sum)
-
-        total_ranks = rankdata(mean_ranks, method='dense', nan_policy='omit')
-
-    elif len(main_metric_names) == 1:
-        total_ranks = ranks[list(main_metric_names)[0]]
-        mean_ranks = None
-
-    else:
-        mean_ranks = total_ranks = None
-
-    return main_metric_names, value_metric_names, ranks, mean_ranks, total_ranks
 
 # Note: Summary is meant to show submitted runs, because it is quite verbose.
 # All runs can be viewed via leaderboard which doesn't show descriptions.
@@ -150,15 +103,15 @@ def mar_summary():
     root, config = _get_root_and_config()
 
     # Load runs
-    runs = [FinishedRun(r) for r in (root / "runs" / "submitted").iterdir()]
+    runs = [_utils.FinishedRun(r) for r in (root / "runs" / "submitted").iterdir()]
     runs = [r for r in runs if len(r.info) > 0]
 
     if len(runs) == 0:
-        return "# Runs\n\nNo runs have been submitted yet!"
+        return "No runs have been submitted yet!"
 
     runs.sort(key = lambda x: x.info["start_sec"]) # sort by start time
 
-    main_metric_names, display_metric_names, ranks, mean_ranks, total_ranks = _process_metrics(runs)
+    main_metric_names, display_metric_names, ranks, mean_ranks, total_ranks = _utils.process_metrics(runs)
 
     # ## Run 1: {name}
 
@@ -189,13 +142,13 @@ def mar_summary():
 
             mean_rank = mean_ranks[i]
             total_rank = total_ranks[i]
-            metrics_s = f'{metrics_s}\n- rank: {_toint(total_rank)}\n- weighted mean rank: {utils.format_value(mean_rank)}'
+            metrics_s = f'{metrics_s}\n- rank: {_toint(total_rank)}\n- weighted mean rank: {_utils.format_value(mean_rank)}'
 
         for metric_name in sorted(display_metric_names):
             if metric_name in run.metrics:
                 metric = run.metrics[metric_name]
                 if metric.display_summary:
-                    metrics_s = f"{metrics_s}\n- {metric_name}: {utils.format_value(metric.value)}"
+                    metrics_s = f"{metrics_s}\n- {metric_name}: {_utils.format_value(metric.value)}"
                     if metric_name in ranks:
                         rank = ranks[metric_name][i]
                         metrics_s = f'{metrics_s} (ranked {_toint(rank)}/{_toint(np.nanmax(ranks[metric_name]))})'
@@ -221,14 +174,14 @@ def mar_display_leaderboard(status: Literal["unsubmitted", "submitted", "discard
 
     runs = []
     if status in ("submitted", "all"):
-        runs = [FinishedRun(r) for r in (root / "runs" / "submitted").iterdir()]
+        runs = [_utils.FinishedRun(r) for r in (root / "runs" / "submitted").iterdir()]
         for r in runs:
             r.status = 'submitted'
 
     if status in ("unsubmitted", "all"):
         this_s = os.path.normcase(current_run_dir) if current_run_dir is not None else ""
         unsubmitted_runs = [
-            FinishedRun(r) for r in (root / "runs" / "unsubmitted").iterdir() if os.path.normpath(r) != this_s]
+            _utils.FinishedRun(r) for r in (root / "runs" / "unsubmitted").iterdir() if os.path.normpath(r) != this_s]
         for r in unsubmitted_runs:
             r.status = 'unsubmitted'
         runs.extend(unsubmitted_runs)
@@ -236,21 +189,21 @@ def mar_display_leaderboard(status: Literal["unsubmitted", "submitted", "discard
     if status == "discarded":
         runs = []
         for session_dir in (root / "runs" / "discarded").iterdir():
-            runs.extend(FinishedRun(r) for r in session_dir.iterdir())
+            runs.extend(_utils.FinishedRun(r) for r in session_dir.iterdir())
 
         for r in runs:
             r.status = 'discarded'
 
     current_run = None
     if current_run_dir is not None:
-        current_run = FinishedRun(current_run_dir)
+        current_run = _utils.FinishedRun(current_run_dir)
         current_run.status = "current"
         runs.append(current_run)
 
     runs = [r for r in runs if len(r.info) > 0]
     runs.sort(key = lambda x: x.info["start_sec"]) # sort by start time
 
-    main_metric_names, display_metric_names, ranks, mean_ranks, total_ranks = _process_metrics(runs)
+    main_metric_names, display_metric_names, ranks, mean_ranks, total_ranks = _utils.process_metrics(runs)
     if len(ranks) == 0:
         click.echo("No runs evaluated yet!")
         return
@@ -265,11 +218,11 @@ def mar_display_leaderboard(status: Literal["unsubmitted", "submitted", "discard
             mean_rank = mean_ranks[-1]
             total_rank = total_ranks[-1]
             click.echo(f'- rank: {_toint(total_rank)}/{_toint(np.nanmax(total_ranks))}')
-            click.echo(f'- weighted mean rank: {utils.format_value(mean_rank)}')
+            click.echo(f'- weighted mean rank: {_utils.format_value(mean_rank)}')
 
         for metric in current_run.metrics.values():
             if metric.display_value:
-                s = f"- {metric.name}: {utils.format_value(metric.value)}"
+                s = f"- {metric.name}: {_utils.format_value(metric.value)}"
                 if (metric.display_rank) and (metric.name in ranks):
                     best_by_metric = runs[np.argmin(ranks[metric.name])].info["name"]
                     s = f"{s} (ranked {_toint(ranks[metric.name][-1])}/{_toint(np.nanmax(ranks[metric.name]))}, best run: {best_by_metric})"
@@ -282,7 +235,7 @@ def mar_display_leaderboard(status: Literal["unsubmitted", "submitted", "discard
     shown = []
 
     # Function to display a run
-    def echo_leaderboard_metrics(run: FinishedRun, rank: int, is_current:bool):
+    def echo_leaderboard_metrics(run: _utils.FinishedRun, rank: int, is_current:bool):
         if run in shown: return
         shown.append(run)
 
@@ -293,11 +246,11 @@ def mar_display_leaderboard(status: Literal["unsubmitted", "submitted", "discard
         s = f"{_toint(rank)}. {name}: "
         for metric in run.metrics.values():
             if metric.display_leaderboard:
-                s = f"{s}{metric.name}={utils.format_value(metric.value)}, "
+                s = f"{s}{metric.name}={_utils.format_value(metric.value)}, "
 
         if mean_ranks is not None:
             mean_rank = mean_ranks[index]
-            s = f"{s}mean_rank={utils.format_value(mean_rank)}, "
+            s = f"{s}mean_rank={_utils.format_value(mean_rank)}, "
 
         s = s[:-2] # remove ", "
 
@@ -316,7 +269,7 @@ def mar_display_leaderboard(status: Literal["unsubmitted", "submitted", "discard
     this_i = 0
     argsort = np.argsort(total_ranks)
     for i, (rank, index) in enumerate(zip(total_ranks[argsort], argsort), start=1):
-        run: FinishedRun = runs[index]
+        run: _utils.FinishedRun = runs[index]
         is_current = (current_run is not None) and (run is current_run)
         if is_current: this_i = i - 1
         sorted_runs.append(run)
@@ -333,7 +286,7 @@ def mar_display_leaderboard(status: Literal["unsubmitted", "submitted", "discard
         for i, (rank, index) in enumerate(zip(total_ranks[argsort], argsort), start=1):
 
             if abs(i - this_i) <= n_neigbors:
-                run: FinishedRun = runs[index]
+                run: _utils.FinishedRun = runs[index]
                 echo_leaderboard_metrics(run, rank, run is current_run)
 
 
@@ -343,25 +296,27 @@ MAR_INSTRUCTION = """# Instructions
 To evaluate a run, use the `mar evaluate` shell command. Pass the following flags:
 
 --file TEXT: name of the python file to submit for evaluation, e.g. "algorithm.py".
-
 --object TEXT: name of the item (class, object, variable) that will be imported from specified file and evaluated. The object is imported as `from <file> import <object>`.
-
---name TEXT: unique descriptive name for this run. If you want to overwrite another unsubmitted run, add an `--overwrite` flag.
-
+--name TEXT: unique descriptive name for this run.
 --description TEXT: describe your algorithm. The description should be concise but detailed, it needs to contain all information necessary to recreate the run.
 
+Useful optional flags for `mar evaluate`:
+--extra-files file1.py file2.py: Include additional files needed for evaluation (e.g., helper modules, data files).
+--overwrite: Overwrite an existing unsubmitted run with the same name.
 
-After running the command, the results of evaluation will be displayed in the terminal. You can also display results manually by running `mar leaderboard`. Keep trying to improve your algorithm and beat the current best run. Finally, submit your best run using `mar submit` shell command. Always submit your best attempt, even if it failed, since it will be useful to know what works and what doesn't. Pass the following flags:
+After running the command, the results of evaluation will be displayed in the terminal. You can also display results manually by running `mar leaderboard`. Keep trying to improve your algorithm and beat the current best run.
+
+
+Finally, submit your best run using `mar submit` shell command. Always submit your best attempt, even if it failed, since it will be useful to know what works and what doesn't. Pass the following flags:
 
 --name TEXT: the same name as you passed to `mar evaluate`. You can list all names via `mar list unsubmitted`.
-
 --result TEXT: describe results of your experiments - what did you try, what worked, what didn't work, did your best attempt beat current leader, can it be improved. This will be shown in previously submitted runs summary next to the description. The summary already shows all metric values, don't duplicate them here."""
 
 ModifierLiteral = Literal["explore", "exploit", "novel", "analyse"]
 MODIFIERS: dict[ModifierLiteral, str] = {
-    "explore": "The goal of this session is exploration. Don't focus on trying to improve existing solutions, try approaches that have not been explored yet in the leaderboard.",
+    "explore": "The goal of this session is exploration. Instead of incremental modifications to existing solutions from the leaderboard, try approaches that have not been explored yet.",
     "exploit": "The goal of this session is exploitation - analyze the leaderboard and focus on the most promising approaches.",
-    "novel": "The goal of this session is to explore novel approaches. Instead of trying known solutions, try to design your own algorithm from scratch.",
+    "novel": "The goal of this session is to explore novel approaches. Instead of trying known solutions, try to design your own algorithm from scratch. It should be new, not a modification of an existing solution.",
     "analyse": "The goal of this session is to perform a deep analysis of the problem. Analyze the problem thoroughly before designing a solution, find new approaches that could be missed by tackling the problem head-on.",
 }
 
@@ -369,7 +324,7 @@ def mar_prompt(modifier: ModifierLiteral | None = None):
     """Prompt for the AI agent."""
     root, config = _get_root_and_config()
 
-    task = utils.read_text(root / "task.md").strip()
+    task = _utils.read_text(root / "task.md").strip()
 
     aftersummary = "If you'd like to see submitted runs again, you can use `mar summary` command. You can also load the source code of any run using `mar load <name>`, but use it only if necessary."
     s = f"{task}\n\n\n{MAR_INSTRUCTION}\n\n\n# Runs\n\n{mar_summary()}\n\n{aftersummary}"
@@ -379,11 +334,11 @@ def mar_prompt(modifier: ModifierLiteral | None = None):
     return s
 
 
-def mar_start():
-    root, config = _get_root_and_config()
-
+def _initialize_session(root: Path, config: dict):
+    """Moves unsubmitted runs to discarded, copies template over to workdir"""
     # Move old runs from ``unsubmitted`` to ``discarded``
     if len(os.listdir(root / "runs" / "unsubmitted")) > 0:
+        # since we don't check for discarded name clashes, each session gets its own subdir
         dt = datetime.fromtimestamp(time.time_ns() / 1e9).strftime('%Y-%m-%d %H-%M-%S')
         discarded_dir = (root / "runs" / "discarded" / dt)
         discarded_dir.mkdir()
@@ -399,46 +354,51 @@ def mar_start():
     if (root / "scripts" / "initialize.py").exists():
         subprocess.run([sys.executable, str(root / "scripts" / "initialize.py")], check=True)
 
-def mar_clear():
+def mar_start():
+    """Start a new session. Clears current session files and moves unsubmitted runs to discarded."""
     root, config = _get_root_and_config()
 
+    # clear files from previous session
     work_dir_name: str = config.get("work_dir", "workdir")
     for item in (root / work_dir_name).iterdir():
         if item.is_dir(): shutil.rmtree(item)
         else: item.unlink()
 
+    # clear failed runs with no info.json (may happen if agent harness like opencode force terminates evaluation)
     for runs_dir in (root / "runs").iterdir():
         if runs_dir.is_dir():
             for run in runs_dir.iterdir():
                 if not (run / "info.json").exists():
                     shutil.rmtree(run)
 
-    mar_start()
+    _initialize_session(root, config)
 
 def mar_evaluate(file: str, object: str, name: str, description: str, extra_files: tuple[str, ...] = (), overwrite=False, baseline=False):
     """
+    Evaluates a submission.
     1. Creates a new dir in ``runs/unsubmitted`` folder.
-    2. Copies ``file`` to ``run/file``, ``evaluate.py`` to ``run/__evaluate__.py``, and ``include`` preserving their file names.
-    3. Runs the experiment in the run folder, capturing outputs to ``STDOUT.log`` and ``STDERR.log``.
-    4. Outputs STDOUT to console.
-    5. Saves ``info.json``
+    2. Copies ``file`` to ``run/file``, ``evaluate.py`` to ``run/__evaluate__.py``, and ``extra_files``.
+    3. Runs the experiment in the run folder, capturing outputs to ``console.log``.
+    4. Outputs console.log to console.
+    5. Saves ``info.json`` and other files.
+    6. Outputs leaderboard and other useful information for agent to iterate on.
     """
     if len(name) == 0:
-        raise utils.NoStackTraceException("Passed empty string to --name.")
+        raise _utils.NoStackTraceException("Passed empty string to --name.")
 
     if not baseline:
         if len(description) == 0:
-            raise utils.NoStackTraceException("Passed empty string to --description.")
+            raise _utils.NoStackTraceException("Passed empty string to --description.")
 
     root, config = _get_root_and_config()
-    name = utils.make_valid_filename(name)
+    name = _utils.make_valid_filename(name)
 
     # Check that `name` is unique
     if overwrite: current_names = mar_list_names("submitted")
     else: current_names = mar_list_names("all")
     if name in current_names:
-        raise utils.NoStackTraceException(f"A run with name '{name}' already exists, make sure the name is unique. "
-                              f"The following names are used: {current_names}")
+        raise _utils.NoStackTraceException(f"A run with name '{name}' already exists, make sure the name is unique "
+                              f"or use `--overwrite` flag. The following names are used: {current_names}")
 
     # Create a new dir to run in and copy from eval template
     eval_dir = root / "runs" / "unsubmitted" / name
@@ -448,14 +408,14 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
     # Copy everything to it
     work_dir_name: str = config.get("work_dir", "workdir")
     if not (root / work_dir_name / file).exists():
-        raise utils.NoStackTraceException(f"File passed to `--file` doesn't exist: {root / work_dir_name / file}")
+        raise _utils.NoStackTraceException(f"File passed to `--file` doesn't exist: {root / work_dir_name / file}")
 
     shutil.copy2(root / work_dir_name / file, eval_dir / file) # copy the algo
     shutil.copy2(root / "scripts" / "evaluate.py", eval_dir / "__evaluate__.py") # copy the scoring
     for extra in extra_files: # copy extra files
         if os.path.isfile(extra): shutil.copy2(root / work_dir_name / extra, eval_dir / extra)
         elif os.path.isdir(extra): shutil.copytree(root / work_dir_name / extra, eval_dir / extra)
-        else: raise utils.NoStackTraceException(f"Path passed to `--extra_files` doesn't exist: {extra}")
+        else: raise _utils.NoStackTraceException(f"Path passed to `--extra_files` doesn't exist: {extra}")
 
     # Run
     timeout = config.get("timeout", None)
@@ -533,7 +493,7 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
     feasibility = []
 
     if (eval_dir / "feasibility.json").exists():
-        feasibility = utils.read_json(eval_dir / "feasibility.json")
+        feasibility = _utils.read_json(eval_dir / "feasibility.json")
 
     if timed_out:
         if max_time is None:
@@ -554,7 +514,7 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
     infeasibility_reasons = [d["reason"] for d in feasibility if d["feasible"] is False]
     feasible = len(infeasibility_reasons) == 0
 
-    utils.write_json(feasibility, eval_dir / "feasibility.json")
+    _utils.write_json(feasibility, eval_dir / "feasibility.json")
 
     nanos = time.time_ns()
     dt = datetime.fromtimestamp(nanos / 1e9)
@@ -578,7 +538,7 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
         "config": config,
     }
 
-    utils.write_json(info, eval_dir / "info.json")
+    _utils.write_json(info, eval_dir / "info.json")
 
     if finished:
         mar_display_leaderboard(current_run_dir=eval_dir)
@@ -589,6 +549,7 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
             click.echo(reason)
 
 def mar_list_names(status: Literal["unsubmitted", "submitted", "discarded", "all"] = "all"):
+    """Displays a list of names with specified status."""
     if status == "all":
         # no discarded here, they are only stored for reference
         return mar_list_names("unsubmitted") + mar_list_names("submitted")
@@ -599,7 +560,7 @@ def mar_list_names(status: Literal["unsubmitted", "submitted", "discarded", "all
     all_names = []
     for run in evals_dir.iterdir():
         if (run / "info.json").exists():
-            all_names.append(utils.read_json(run / "info.json")["name"])
+            all_names.append(_utils.read_json(run / "info.json")["name"])
 
     return all_names
 
@@ -608,7 +569,7 @@ def mar_submit(name: str, result: str | None):
     """Moves specified run from ``unsubmitted`` to ``submitted``, adding ``result`` to ``info.json``.
     This run will now appear in run lists and visualizations."""
     root, config = _get_root_and_config()
-    name = utils.make_valid_filename(name)
+    name = _utils.make_valid_filename(name)
 
     evals_dir = root / "runs" / "unsubmitted"
     target_run = None
@@ -618,17 +579,17 @@ def mar_submit(name: str, result: str | None):
             shutil.rmtree(run)
             continue
 
-        run_name = utils.read_json(run / "info.json")["name"]
+        run_name = _utils.read_json(run / "info.json")["name"]
         if run_name == name:
             target_run = run
             break
         all_names.append(run_name)
 
     if (root / "runs" / "submitted" / name).exists():
-        raise utils.NoStackTraceException(f"You have already submitted run with name '{name}'!")
+        raise _utils.NoStackTraceException(f"You have already submitted run with name '{name}'!")
 
     if target_run is None:
-        raise utils.NoStackTraceException(f"An unsubmitted run with name '{name}' doesn't exist, "
+        raise _utils.NoStackTraceException(f"An unsubmitted run with name '{name}' doesn't exist, "
                                           "make sure 'name' is identical to one passed to `run` command. "
                                           f"The following unsubmitted runs exist: {all_names}")
 
@@ -636,38 +597,18 @@ def mar_submit(name: str, result: str | None):
     shutil.move(target_run, new_dir)
 
     # Add summary to info
-    info = utils.read_json(new_dir /  "info.json")
+    info = _utils.read_json(new_dir /  "info.json")
     info["result"] = result
-    utils.write_json(info, new_dir /  "info.json")
+    _utils.write_json(info, new_dir /  "info.json")
 
     click.echo(f'Run "{name}" has been saved to "{new_dir}".')
 
-def _find_run_dir_by_name(name: str, root: Path) -> Path:
-    # need to find name in either submitted or unsubmitted
-    target_run_dir = None
-    all_names = []
-    for status in ("unsubmitted", "submitted"):
-        dir = root / "runs" / status
-        for run_dir in dir.iterdir():
-            run_name = utils.read_json(run_dir / "info.json")["name"]
-            if run_name == name:
-                target_run_dir = run_dir
-                break
-            all_names.append(run_name)
-
-        if target_run_dir is not None:
-            break
-
-    if target_run_dir is None:
-        raise utils.NoStackTraceException(f"A run with name '{name}' doesn't exist, make sure 'name' is identical to one "
-                                f"passed to `run` command. The following runs exist: {all_names}")
-
-    return target_run_dir
 
 def mar_discard(name: str):
+    """Discards specified submitted run"""
     root, config = _get_root_and_config()
-    name = utils.make_valid_filename(name)
-    target_run_dir = _find_run_dir_by_name(name, root)
+    name = _utils.make_valid_filename(name)
+    target_run_dir = _utils.find_run_dir_by_name(name, root)
     dt = datetime.fromtimestamp(time.time_ns() / 1e9).strftime('%Y-%m-%d %H-%M-%S')
     discarded_dir = root / "runs" / "discarded" / dt
     discarded_dir.mkdir()
@@ -677,11 +618,12 @@ def mar_discard(name: str):
 
 
 def mar_load(name: str):
+    """Loads specified run source to workdir, this is meant to be used by AI to give it a way to access existing runs."""
     root, config = _get_root_and_config()
-    name = utils.make_valid_filename(name)
+    name = _utils.make_valid_filename(name)
 
     # need to find name in either submitted or unsubmitted
-    target_run_dir = _find_run_dir_by_name(name, root)
+    target_run_dir = _utils.find_run_dir_by_name(name, root)
 
     work_dir: Path = root / config.get("work_dir", "workdir")
     (work_dir / "loaded").mkdir(exist_ok=True)
@@ -694,7 +636,7 @@ def mar_load(name: str):
             if item.is_dir(): shutil.rmtree(item)
             else: item.unlink()
 
-    info = utils.read_json(new_dir / "info.json")
+    info = _utils.read_json(new_dir / "info.json")
     source_file = info["file"]
 
     maybe_delete(new_dir / "__evaluate__.py")
@@ -714,6 +656,7 @@ def mar_config(work_dir,
             timeout,
             top_k,
             n_neighbors):
+    """Modify config file through terminal e.g. ``mar config --author=Qwen3.5``"""
     root, config = _get_root_and_config()
 
     if _is_set(work_dir): config["work_dir"] = work_dir
@@ -731,17 +674,18 @@ def mar_config(work_dir,
         if n_neighbors is not None: n_neighbors = int(n_neighbors)
         config["n_neighbors"] = n_neighbors
 
-    utils.write_yaml(config, root / "config.yaml", )
+    _utils.write_yaml(config, root / "config.yaml", )
 
 
 def _sort_key(dir: Path):
     if (dir / "info.json").exists():
-        info = utils.read_json(dir / "info.json")
+        info = _utils.read_json(dir / "info.json")
         return info["start_sec"]
     else:
         return 0
 
 def mar_reevaluate():
+    """Reevaluates all submitted runs. You can use this if you've updated the evaluation script. Note that this doesn't affect unsubmitted/discarded runs, and it is recommended to delete them because they might mess with visualizations due to using old evaluation code."""
     root, config = _get_root_and_config()
 
     work_dir_name = config.get("work_dir", "workdir")
@@ -755,15 +699,15 @@ def mar_reevaluate():
         if (run_dir / "info.json").exists():
             click.echo(f"Reevaluating `{run_dir.name}`...")
 
-            info = utils.read_json(run_dir / "info.json")
+            info = _utils.read_json(run_dir / "info.json")
 
-            mar_clear()
+            mar_start()
 
             shutil.copy(run_dir / info["file"], work_dir / info["file"])
             for extra in info["extra_files"]: # copy extra files
                 if os.path.isfile(extra): shutil.copy2(run_dir / extra, work_dir / extra)
                 elif os.path.isdir(extra): shutil.copytree(run_dir / extra, work_dir / extra)
-                else: raise utils.NoStackTraceException(f"Path passed to `--extra_files` doesn't exist: {extra}")
+                else: raise _utils.NoStackTraceException(f"Path passed to `--extra_files` doesn't exist: {extra}")
 
 
             shutil.rmtree(run_dir)
@@ -785,22 +729,23 @@ def mar_reevaluate():
 
 
 def mar_rename(old: str, new: str):
+    """Renames a run."""
     root, config = _get_root_and_config()
-    old = utils.make_valid_filename(old)
-    new = utils.make_valid_filename(new)
+    old = _utils.make_valid_filename(old)
+    new = _utils.make_valid_filename(new)
 
     # need to find name in either submitted or unsubmitted
-    target_run_dir = _find_run_dir_by_name(old, root)
+    target_run_dir = _utils.find_run_dir_by_name(old, root)
     if (os.path.exists(target_run_dir.parent / new)):
-        raise utils.NoStackTraceException(f"A run with name `{new}` already exists in {target_run_dir.parent}.")
+        raise _utils.NoStackTraceException(f"A run with name `{new}` already exists in {target_run_dir.parent}.")
 
     new_dir = target_run_dir.parent / new
     os.rename(target_run_dir, new_dir)
 
     info_file = new_dir / "info.json"
     if info_file.exists():
-        info = utils.read_json(info_file)
+        info = _utils.read_json(info_file)
         info["name"] = new
-        utils.write_json(info, info_file)
+        _utils.write_json(info, info_file)
 
     click.echo(f"Run {target_run_dir} was renamed to {new_dir}")

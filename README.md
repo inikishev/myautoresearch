@@ -1,1 +1,0 @@
-my take on autoresearch, except nobody knows how to use this, because im running out of time this weekend working on this and didnt have time to write the readme. its good tho.
