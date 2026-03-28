@@ -149,7 +149,7 @@ class Evaluator:
             display_leaderboard: Show this metric for all other runs in the leaderboard after a run is evaluated.
                 Keep the number of metrics in the leaderboard under 4 to make it more readable. Defaults to True.
             display_summary: Show this metric for all submited runs in the summary shown when agent runs `mar start`.
-                Keep the number of metrics in the summary under 10 to avoid filling the context with large number of submissions.
+                Keep the number of metrics in the summary under 10 to avoid filling the context when number of submissions is large.
             weight: This metric's weight for computing average rank from main metrics. Defaults to 1.0.
         """
 
@@ -163,7 +163,7 @@ Tip: If you modify the evaluation script, you can run `mar reevaluate` to rerun 
 
 ### 4. Write task.md
 
-`task.md` defines the description of the problem, and its contents will be shown to the AI agent when it runs `mar start`. It is recommended to include at least three sections: Task, API and Evaluation metric. Make sure you specify what the agent should submit exactly. If applicable, put a stub in the API section so that it knows the exact interface it should follow.
+`task.md` defines the description of the problem, and its contents will be shown to the AI agent when it runs `mar start`. It is recommended to include at least three sections: Task, API and Evaluation. Make sure you specify what the agent should submit exactly. If applicable, put a stub in the API section so that it knows the exact interface it should follow.
 
 ### 5. Test your setup
 
@@ -192,7 +192,9 @@ If running in a loop, you can use modifiers:
 
 Put the name of the modifier after `mar start` in the prompt, for example `mar start explore`. Alternating between modifiers can improve the diversity of the solutions.
 
-### 8. Additional Commands
+## Other info
+
+### Additional Commands
 
 - `mar reevaluate`: Rerun all submitted runs with the current evaluation script. Use after modifying `scripts/evaluate.py`.
 - `mar load <name>`: Load the source code of a previous run into the working directory.
@@ -204,7 +206,7 @@ Put the name of the modifier after `mar start` in the prompt, for example `mar s
 - `mar config --<option> <value>`: Update configuration options from CLI.
 - `mar --help`: Show help for any command (e.g., `mar evaluate --help`).
 
-### 9. Error Handling
+### Error Handling
 
 - **Exception**: Exceptions are handled automatically. If the evaluation script raises an exception, the run is deleted, and the agent sees the stack trace.
 - **Timeout**: If runtime exceeds `timeout` (from config), the run is deleted.
@@ -212,6 +214,11 @@ Put the name of the modifier after `mar start` in the prompt, for example `mar s
 
 Infeasible runs are still useful to submit as they document what approaches don't work.
 
-### 10. Working Directory Requirement
+### Working Directory Requirement
 
 All `mar` commands (except `mar init`) must be run from the working directory. If you run a command from the wrong directory, you'll get an error message indicating that you need to change to the working directory.
+
+## General tips
+
+- Make sure evaluation is deterministic - use same random seed, etc.
+- If timing algorithms, perform a few warmup iterations first.

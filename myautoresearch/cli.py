@@ -113,25 +113,27 @@ def cli_load(name: str):
 def cli_config(
     work_dir=..., author=..., max_time=..., timeout=..., top_k=..., n_neighbors=...
 ):
-    commands.mar_config(
-        work_dir=work_dir,
-        author=author,
-        max_time=max_time,
-        timeout=timeout,
-        top_k=top_k,
-        n_neighbors=n_neighbors,
-    )
+    with no_stack_trace():
+        commands.mar_config(
+            work_dir=work_dir,
+            author=author,
+            max_time=max_time,
+            timeout=timeout,
+            top_k=top_k,
+            n_neighbors=n_neighbors,
+        )
 
 @mar.command("discard")
 @click.argument('names', nargs=-1, type=str)
 def cli_discard(names: tuple[str]):
-    for name in names:
-        commands.mar_discard(name)
+    with no_stack_trace():
+        commands.mar_discard(*names)
 
 
 @mar.command("reevaluate")
 def cli_reevaluate():
-    commands.mar_reevaluate()
+    with no_stack_trace():
+        commands.mar_reevaluate()
 
 
 
@@ -139,4 +141,5 @@ def cli_reevaluate():
 @click.argument('old', type=str)
 @click.argument('new', type=str)
 def cli_rename(old: str, new: str):
-    commands.mar_rename(old=old, new=new)
+    with no_stack_trace():
+        commands.mar_rename(old=old, new=new)

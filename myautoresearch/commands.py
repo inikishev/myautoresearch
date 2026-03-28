@@ -1,3 +1,4 @@
+import tempfile
 import math
 import os
 import shutil
@@ -64,12 +65,12 @@ def mar_init(preset: str | None = None):
     # readme
     if not (root / "README.md").exists():
         _utils.write_text(
-            r"<!-- This file is not shown to the AI agent. You can copy the prompt from here. -->\n## Prompt:\nYour goal will be to develop <describe the task>. Run `mar start` in the shell and follow the instructions.",
+            "<!-- This file is not shown to the AI agent. You can fill in the prompt template and copy it from here. -->\n## Prompt:\nYour goal will be to develop <describe the task>. Run `mar start` in the shell and follow the instructions.",
             root / "README.md"
         )
 
     # prompts
-    if not (root / "task.md").exists(): _utils.write_text("# Task\n\n# API\n\n# Evaluation metric\n\n", root / "task.md")
+    if not (root / "task.md").exists(): _utils.write_text("## Task\n\n## API\n\n## Evaluation\n\n", root / "task.md")
 
     # scripts
     (root / "scripts").mkdir(exist_ok=True)
@@ -224,7 +225,7 @@ def mar_display_leaderboard(status: Literal["unsubmitted", "submitted", "discard
             if metric.display_value:
                 s = f"- {metric.name}: {_utils.format_value(metric.value)}"
                 if (metric.display_rank) and (metric.name in ranks):
-                    best_by_metric = runs[np.argmin(ranks[metric.name])].info["name"]
+                    best_by_metric = runs[np.nanargmin(ranks[metric.name])].info["name"]
                     s = f"{s} (ranked {_toint(ranks[metric.name][-1])}/{_toint(np.nanmax(ranks[metric.name]))}, best run: {best_by_metric})"
                 click.echo(s)
 
@@ -341,7 +342,7 @@ def _initialize_session(root: Path, config: dict):
         # since we don't check for discarded name clashes, each session gets its own subdir
         dt = datetime.fromtimestamp(time.time_ns() / 1e9).strftime('%Y-%m-%d %H-%M-%S')
         discarded_dir = (root / "runs" / "discarded" / dt)
-        discarded_dir.mkdir()
+        discarded_dir.mkdir(exist_ok=True)
         shutil.copytree(root / "runs" / "unsubmitted", discarded_dir, dirs_exist_ok=True)
         shutil.rmtree(root / "runs" / "unsubmitted")
         (root / "runs" / "unsubmitted").mkdir()
@@ -365,11 +366,9 @@ def mar_start():
         else: item.unlink()
 
     # clear failed runs with no info.json (may happen if agent harness like opencode force terminates evaluation)
-    for runs_dir in (root / "runs").iterdir():
-        if runs_dir.is_dir():
-            for run in runs_dir.iterdir():
-                if not (run / "info.json").exists():
-                    shutil.rmtree(run)
+    for run in (root / "runs" / "unsubmitted").iterdir():
+        if not (run / "info.json").exists():
+            shutil.rmtree(run)
 
     _initialize_session(root, config)
 
@@ -427,22 +426,30 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
     should_delete = False
 
     with open(eval_dir / "console.log", "a", encoding='utf-8') as console_log:
-        cwd = os.getcwd()
         try:
-            os.chdir(eval_dir)
+
+            current_items = set(os.listdir(eval_dir))
             result = subprocess.run(
                 [
                     sys.executable,
-                    '__evaluate__.py',
+                    "__evaluate__.py",
                     "--file", file,
                     "--object", f'{object}',
                 ],
+                cwd = eval_dir,
                 check = True,
                 text = True,
                 stdout = console_log,
                 stderr = subprocess.STDOUT,
                 timeout = timeout
             )
+            new_items = set(os.listdir(eval_dir)).difference(current_items)
+
+            # copy over files that script has saved back to workdir
+            for item in new_items:
+                if (not item.startswith(".")) and (item not in "debug.log"):
+                    if os.path.isfile(item): shutil.copy2(eval_dir / item, root / work_dir_name / item)
+                    elif os.path.isdir(item): shutil.copytree(eval_dir / item, root / work_dir_name / item)
 
             with open(eval_dir / "console.log", "r", encoding='utf-8') as f: click.echo(f.read())
             finished = True
@@ -464,22 +471,19 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
             with open(eval_dir / "console.log", "r", encoding='utf-8') as f: click.echo(f.read())
             click.echo(f"ERROR: execution failed with the following exception:\n{e}\n")
 
-        finally:
-            os.chdir(cwd)
-
     time_sec = time.time() - start_sec
     click.echo(f"Run finished in {time_sec:.2f} seconds.")
 
-    if (eval_dir / "logger.npz").exists():
-        try:
-            loggers_dir = root / work_dir_name / "loggers"
-            if not loggers_dir.exists(): loggers_dir.mkdir()
-            shutil.copyfile(eval_dir / "logger.npz", loggers_dir / f"logger_{name}.npz")
-            logger = Logger.from_file(loggers_dir / f"logger_{name}.npz")
+    # if (eval_dir / "logger.npz").exists():
+    #     try:
+    #         loggers_dir = root / work_dir_name / "loggers"
+    #         if not loggers_dir.exists(): loggers_dir.mkdir()
+    #         shutil.copyfile(eval_dir / "logger.npz", loggers_dir / f"logger_{name}.npz")
+    #         logger = Logger.from_file(loggers_dir / f"logger_{name}.npz")
 
-            click.echo(f'\n`loggers/logger_{name}.npz` was saved to working directory. If you\'d like to inspect it, you can load it by running `from myautoresearch import Logger; logger = Logger.from_file("logger.npz")`. Use `logger.to_numpy(metric_name)` to load metrics for each step as an array. The following metrics were saved:\n{tuple(logger.keys())}\n')
-        except Exception as e:
-            warnings.warn(f"WARNING: failed to load the logger (this is likely an issue with evaluation script):\n{e}.")
+    #         click.echo(f'\n`loggers/logger_{name}.npz` was saved to working directory. If you\'d like to inspect it, you can load it by running `from myautoresearch import Logger; logger = Logger.from_file("logger.npz")`. Use `logger.to_numpy(metric_name)` to load metrics for each step as an array. The following metrics were saved:\n{tuple(logger.keys())}\n')
+    #     except Exception as e:
+    #         warnings.warn(f"WARNING: failed to load the logger (this is likely an issue with evaluation script):\n{e}.")
 
     if should_delete:
         if timed_out: click.echo(f"Run `{name}` was deleted because the execution was timed out.")
@@ -604,17 +608,18 @@ def mar_submit(name: str, result: str | None):
     click.echo(f'Run "{name}" has been saved to "{new_dir}".')
 
 
-def mar_discard(name: str):
-    """Discards specified submitted run"""
+def mar_discard(*names: str):
+    """Discards specified submitted runs"""
     root, config = _get_root_and_config()
-    name = _utils.make_valid_filename(name)
-    target_run_dir = _utils.find_run_dir_by_name(name, root)
     dt = datetime.fromtimestamp(time.time_ns() / 1e9).strftime('%Y-%m-%d %H-%M-%S')
     discarded_dir = root / "runs" / "discarded" / dt
-    discarded_dir.mkdir()
-    new_dir = discarded_dir / name
-    shutil.move(target_run_dir, new_dir)
-    click.echo(f'Run "{name}" has been moved to "{new_dir}".')
+    discarded_dir.mkdir(exist_ok=True)
+    for name in names:
+        name = _utils.make_valid_filename(name)
+        target_run_dir = _utils.find_run_dir_by_name(name, root)
+        new_dir = discarded_dir / name
+        shutil.move(target_run_dir, new_dir)
+        click.echo(f'Run "{name}" has been moved to "{new_dir}".')
 
 
 def mar_load(name: str):
@@ -685,17 +690,24 @@ def _sort_key(dir: Path):
         return 0
 
 def mar_reevaluate():
-    """Reevaluates all submitted runs. You can use this if you've updated the evaluation script. Note that this doesn't affect unsubmitted/discarded runs, and it is recommended to delete them because they might mess with visualizations due to using old evaluation code."""
+    """Reevaluates all submitted runs. You can use this if you've updated the evaluation script. Note that unsubmitted and discarded runs will be deleted."""
     root, config = _get_root_and_config()
 
     work_dir_name = config.get("work_dir", "workdir")
     work_dir = root / work_dir_name
 
     submitted = (root / "runs" / "submitted")
-    dirs = list(submitted.iterdir())
-    dirs.sort(key = _sort_key)
 
-    for run_dir in submitted.iterdir():
+    dt = datetime.fromtimestamp(time.time_ns() / 1e9).strftime('%Y-%m-%d %H-%M-%S')
+    (root / "runs" / "backup").mkdir(exist_ok=True)
+    backup_dir = (root / "runs" / "backup" / dt)
+    shutil.copytree(root / "runs" / "submitted", backup_dir)
+
+    sorted_dirs = list(submitted.iterdir())
+    sorted_dirs.sort(key = _sort_key)
+    success = True
+
+    for run_dir in sorted_dirs:
         if (run_dir / "info.json").exists():
             click.echo(f"Reevaluating `{run_dir.name}`...")
 
@@ -709,24 +721,53 @@ def mar_reevaluate():
                 elif os.path.isdir(extra): shutil.copytree(run_dir / extra, work_dir / extra)
                 else: raise _utils.NoStackTraceException(f"Path passed to `--extra_files` doesn't exist: {extra}")
 
+            with tempfile.TemporaryDirectory() as tmpdir:
+                shutil.move(run_dir, os.path.join(tmpdir, run_dir.name))
 
-            shutil.rmtree(run_dir)
+                try:
+                    mar_evaluate(
+                        file=info["file"],
+                        object=info["object_name"],
+                        name=info["name"],
+                        description=info["description"],
+                        extra_files=info["extra_files"],
+                        baseline=info["baseline"],
+                    )
 
-            mar_evaluate(
-                file=info["file"],
-                object=info["object_name"],
-                name=info["name"],
-                description=info["description"],
-                extra_files=info["extra_files"],
-                baseline=info["baseline"],
-            )
+                    if info["name"] in os.listdir(root / "runs" / "unsubmitted"):
+                        mar_submit(name=info["name"], result=info["result"])
 
-            mar_submit(name=info["name"], result=info["result"])
+                    else:
+                        raise _utils.NoStackTraceException(f"Exception caught while evaluating `{info['name']}`.")
 
+                except Exception as e:
+                    if backup_dir.is_dir() and len(os.listdir(backup_dir)) > 0:
+                        click.echo(
+                            f"Reevaluation of run `{info['name']}` failed:"
+                            f"\n{e}\nReevaluation was cancelled."
+                        )
+                        shutil.rmtree(root / "runs" / "submitted")
+                        (root / "runs" / "submitted").mkdir()
+                        shutil.move(backup_dir, root / "runs" / "submitted")
+
+                    else:
+                        click.echo(
+                            f"Reevaluation of run `{info['name']}` failed:"
+                            f"\n{e}\nReevaluation was cancelled. "
+                            "The backup couldn't be restored (1 run may be missing)"
+                        )
+
+                    success = False
+                    break
         else:
             click.echo(f"`{run_dir.name}` has no info.json, it will be deleted.")
             shutil.rmtree(run_dir)
 
+    if success:
+        shutil.rmtree(root / "runs" / "unsubmitted")
+        (root / "runs" / "unsubmitted").mkdir()
+        shutil.rmtree(root / "runs" / "discarded")
+        (root / "runs" / "discarded").mkdir()
 
 def mar_rename(old: str, new: str):
     """Renames a run."""

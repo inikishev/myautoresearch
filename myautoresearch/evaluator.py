@@ -1,7 +1,7 @@
 import sys
 from abc import ABC, abstractmethod
 from typing import Any
-
+import logging
 from . import _utils
 from .logger import Logger
 
@@ -10,8 +10,12 @@ class Evaluator(ABC):
     def __init__(self, argv: list[str] = sys.argv):
         self.object = _utils.import_object(argv)
         self._metrics: dict[str, _utils.Metric] = {}
-        self.logger = Logger()
+        self.history = Logger()
         self._feasibility = []
+
+        self.file_logger = _utils.get_logger("debug.log")
+        """Silently log to a file."""
+
 
     @abstractmethod
     def run(self) -> None:
@@ -21,7 +25,7 @@ class Evaluator(ABC):
         """Log an intermediate numeric metric, like train loss. If any are logged, the logger will be saved
         to working directory, and a short instruction for the agent will be displayed
         after evaluating a run on how to inspect it."""
-        self.logger.log(step, metric, value)
+        self.history.log(step, metric, value)
 
     def log_final(
         self,
@@ -72,8 +76,8 @@ class Evaluator(ABC):
         self._feasibility.append({"feasible": False, "reason": reason})
 
     def save(self):
-        if len(self.logger) > 0:
-            self.logger.save("logger.npz")
+        if len(self.history) > 0:
+            self.history.save("logger.npz")
         _utils.write_json({k: v.to_tuple() for k,v in self._metrics.items()}, "metrics.json")
         _utils.write_json(self._feasibility, "feasibility.json")
 

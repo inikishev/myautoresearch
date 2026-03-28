@@ -1,4 +1,5 @@
 """Internal utils"""
+import click
 import argparse
 import importlib.util
 import json
@@ -12,7 +13,7 @@ import numpy as np
 import psutil
 import yaml
 from scipy.stats import rankdata
-
+import logging
 
 class NoStackTraceException(Exception): pass
 
@@ -87,6 +88,7 @@ def get_cwd():
         return Path(os.getcwd())
     except FileNotFoundError:
         cwd = Path(psutil.Process(os.getpid()).cwd())
+        click.echo(f"os.getcwd() failed. Changing dir to psutil cwd: {cwd}")
         os.chdir(cwd)
         return cwd
 
@@ -213,3 +215,16 @@ def find_run_dir_by_name(name: str, root: Path) -> Path:
                                 f"passed to `run` command. The following runs exist: {all_names}")
 
     return target_run_dir
+
+def get_logger(file):
+    logger = logging.getLogger("myautoresearch")
+
+    for handler in logger.handlers:
+        logger.removeHandler(handler)
+
+    logger.setLevel(1)
+    handler = logging.FileHandler(file)
+    handler.setLevel(1)
+    handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+    logger.addHandler(handler)
+    return logger
