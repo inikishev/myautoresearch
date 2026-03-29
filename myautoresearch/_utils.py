@@ -1,19 +1,21 @@
 """Internal utils"""
-import click
 import argparse
 import importlib.util
 import json
+import logging
 import os
+import signal
 import sys
 from collections import defaultdict
 from pathlib import Path
 from typing import Literal
 
+import click
 import numpy as np
 import psutil
 import yaml
 from scipy.stats import rankdata
-import logging
+
 
 class NoStackTraceException(Exception): pass
 
@@ -41,10 +43,11 @@ def import_object(argv: list[str]):
     # --name
     # --description
 
-    if "__evaluate__.py" in argv: argv.remove("__evaluate__.py")
+    if "__myautoresearch_evaluate__.py" in argv: argv.remove("__myautoresearch_evaluate__.py")
     parser = argparse.ArgumentParser(description="Evaluates scripts.")
     parser.add_argument('-f', "--file", type=str)
     parser.add_argument('-o', "--object", type=str)
+    parser.add_argument('-r', "--root", type=str)
     args = parser.parse_args(argv)
 
     # Create spec
@@ -61,7 +64,7 @@ def import_object(argv: list[str]):
     object = getattr(module, args.object)
     if object is None:
         raise NoStackTraceException(f"Submitted file doesn't contain `{object}` or it is None.")
-    return object
+    return object, args
 
 def format_value(x):
     if isinstance(x, np.ndarray) and x.size == 1: x = x.item()
@@ -228,3 +231,23 @@ def get_logger(file):
     handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
     logger.addHandler(handler)
     return logger
+
+
+def cleanup_orphans(script_name: str = "__myautoresearch_evaluate__.py"):
+    current_pid = os.getpid()
+
+    for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+        try:
+            cmdline = proc.info.get('cmdline') or []
+            if any(script_name in arg for arg in cmdline):
+                if proc.info['pid'] != current_pid:
+                    click.echo(
+                        f"WARNING: another evaluation script is already running (PID: {proc.info['pid']}) and will now be terminated. Don't run multiple evaluations in parallel as that would affect their recorded runtime, and increase/disable shell command tool timeout to avoid killing `mar evaluate`.")
+                    proc.send_signal(signal.SIGTERM)
+                    proc.wait(timeout=3)
+
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+
+        except psutil.TimeoutExpired:
+            proc.kill()

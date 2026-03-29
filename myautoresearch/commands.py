@@ -1,9 +1,11 @@
-import tempfile
+import signal
+import fcntl
 import math
 import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import warnings
 from datetime import datetime
@@ -12,12 +14,12 @@ from typing import Literal
 
 import click
 import numpy as np
+import psutil
 import yaml
 
-from . import _utils
+from . import _utils, prompts
 from .evaluate_template import EVALUATE_TEMPLATE
 from .logger import Logger
-from . import prompts
 
 
 def _toint(x):
@@ -350,7 +352,7 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
     """
     Evaluates a submission.
     1. Creates a new dir in ``runs/unsubmitted`` folder.
-    2. Copies ``file`` to ``run/file``, ``evaluate.py`` to ``run/__evaluate__.py``, and ``extra_files``.
+    2. Copies ``file`` to ``run/file``, ``evaluate.py`` to ``run/__myautoresearch_evaluate__.py``, and ``extra_files``.
     3. Runs the experiment in the run folder, capturing outputs to ``console.log``.
     4. Outputs console.log to console.
     5. Saves ``info.json`` and other files.
@@ -384,7 +386,7 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
         raise _utils.NoStackTraceException(f"File passed to `--file` doesn't exist: {root / work_dir_name / file}")
 
     shutil.copy2(root / work_dir_name / file, eval_dir / file) # copy the algo
-    shutil.copy2(root / "scripts" / "evaluate.py", eval_dir / "__evaluate__.py") # copy the scoring
+    shutil.copy2(root / "scripts" / "evaluate.py", eval_dir / "__myautoresearch_evaluate__.py") # copy the scoring
     for extra in extra_files: # copy extra files
         if os.path.isfile(extra): shutil.copy2(root / work_dir_name / extra, eval_dir / extra)
         elif os.path.isdir(extra): shutil.copytree(root / work_dir_name / extra, eval_dir / extra)
@@ -406,16 +408,17 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
             result = subprocess.run(
                 [
                     sys.executable,
-                    "__evaluate__.py",
+                    "__myautoresearch_evaluate__.py",
                     "--file", file,
                     "--object", f'{object}',
+                    "--root", f"{root}"
                 ],
                 cwd = eval_dir,
                 check = True,
                 text = True,
                 stdout = console_log,
                 stderr = subprocess.STDOUT,
-                timeout = timeout
+                timeout = timeout,
             )
             new_items = set(os.listdir(eval_dir)).difference(current_items)
 
@@ -435,15 +438,23 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
             click.echo(f"ERROR: script runtime exceeded the timeout of {timeout} sec, "
                         "process has been terminated early.")
 
-        except subprocess.CalledProcessError:
+        except subprocess.CalledProcessError as e:
             should_delete = True
             with open(eval_dir / "console.log", "r", encoding='utf-8') as f: click.echo(f.read())
-            click.echo("ERROR: script raised an exception.")
+            click.echo(f"ERROR: script raised an exception:\n{e}\n")
+            if e.returncode == -signal.SIGTERM:
+                click.echo("Run was terminated by a SIGTERM likely because another run has started.")
+            elif e.returncode == -signal.SIGKILL:
+                click.echo("Run was force-killed (SIGKILL) likely because another run has started.")
 
         except Exception as e:
             should_delete = True
             with open(eval_dir / "console.log", "r", encoding='utf-8') as f: click.echo(f.read())
             click.echo(f"ERROR: execution failed with the following exception:\n{e}\n")
+
+        finally:
+            if not eval_dir.exists():
+                raise _utils.NoStackTraceException(f"ERROR: The evaluation directory {eval_dir} has been deleted. This may happen if you run two evaluations with the same name in parallel.")
 
     time_sec = time.time() - start_sec
     click.echo(f"Run finished in {time_sec:.2f} seconds.")
@@ -622,7 +633,7 @@ def mar_load(name: str):
     info = _utils.read_json(new_dir / "info.json")
     source_file = info["file"]
 
-    maybe_delete(new_dir / "__evaluate__.py")
+    maybe_delete(new_dir / "__myautoresearch_evaluate__.py")
     maybe_delete(new_dir / "info.json")
     maybe_delete(new_dir / "feasibility.json")
 

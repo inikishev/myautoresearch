@@ -85,10 +85,10 @@ First, decide on what the agent should submit as the solution. Usually it's goin
 Then you can define the `run` method on the evaluator, where the object submitted by the AI agent will be in the `object` attribute:
 
 ```python
-from myautoresearch.evaluator import Evaluator
+from myautoresearch import Evaluator, run
 
 class MyEvaluator(Evaluator):
-    def run(self):
+    def evaluate(self):
         # self.object is the object imported from the submitted file
         algorithm = self.object
 
@@ -110,9 +110,7 @@ class MyEvaluator(Evaluator):
             self.set_infeasible("Constraint violation reason")
 
 if __name__ == "__main__":
-    evaluator = MyEvaluator()
-    evaluator.run()
-    evaluator.save()
+    run(MyEvaluator())
 ```
 
 The evaluator has three main methods useful inside `run`:

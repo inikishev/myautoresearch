@@ -1,14 +1,21 @@
+import fcntl
 import sys
+import time
+import warnings
+import os
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Any
-import logging
+
+import click
+
 from . import _utils
 from .logger import Logger
 
 
 class Evaluator(ABC):
     def __init__(self, argv: list[str] = sys.argv):
-        self.object = _utils.import_object(argv)
+        self.object, self._args = _utils.import_object(argv)
         self._metrics: dict[str, _utils.Metric] = {}
         self.history = Logger()
         self._feasibility = []
@@ -16,9 +23,8 @@ class Evaluator(ABC):
         self.file_logger = _utils.get_logger("debug.log")
         """Silently log to a file."""
 
-
     @abstractmethod
-    def run(self) -> None:
+    def evaluate(self) -> None:
         """Evaluates ``self.object`` and logs the metrics. Use ``click.echo`` to display any additional information useful to the AI agent."""
 
     def log_step(self, step: int, metric: str, value: Any):
@@ -81,3 +87,22 @@ class Evaluator(ABC):
         _utils.write_json({k: v.to_tuple() for k,v in self._metrics.items()}, "metrics.json")
         _utils.write_json(self._feasibility, "feasibility.json")
 
+def run(evaluator: Evaluator):
+    root = Path(evaluator._args.root)
+
+    with open(root / 'eval.lock', 'w', encoding='utf-8') as f:
+        try:
+            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            _utils.cleanup_orphans()
+            try:
+                fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError as e:
+                raise RuntimeError("Another evaluation script is already running and couldn't be terminated.") from e
+
+        try:
+            evaluator.evaluate()
+            evaluator.save()
+
+        finally:
+            os.remove(root / 'eval.lock')
