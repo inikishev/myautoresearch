@@ -4,7 +4,7 @@ from typing import Literal
 
 import click
 from contextlib import contextmanager
-from . import _utils, commands
+from . import _utils, commands, prompts
 
 @contextmanager
 def no_stack_trace():
@@ -27,8 +27,8 @@ def cli_init(work_dir_name: str):
         click.echo("New project has been initialized.")
 
 @mar.command("start")
-@click.argument('modifier', default=None)
-def cli_start(modifier: commands.ModifierLiteral | None = None):
+@click.argument('modifier', type=str, default=None)
+def cli_start(modifier: prompts.ModifierLiteral | None = None):
     with no_stack_trace():
         commands.mar_start()
         click.echo(commands.mar_prompt(modifier))
@@ -48,6 +48,7 @@ def cli_summary():
 # hidden flags - only human can use them
 @click.option('-b', '--baseline', "baseline", hidden=True, is_flag=True)
 @click.option('-s', '--submit', "submit", hidden=True, is_flag=True)
+@click.option('-a', '--author', "author", hidden=True, type=str, default=None)
 def evaluate(
     file: str,
     object: str,
@@ -57,6 +58,7 @@ def evaluate(
     overwrite: bool = False,
     baseline: bool = False,
     submit: bool = False,
+    author: str | None = None
 ):
     with no_stack_trace():
         commands.mar_evaluate(
@@ -67,6 +69,7 @@ def evaluate(
             extra_files = extra_files,
             overwrite = overwrite,
             baseline = baseline,
+            author = author,
         )
 
         if submit:
@@ -80,7 +83,7 @@ def cli_submit(name: str, result: str | None):
         return commands.mar_submit(name=name, result=result)
 
 @mar.command("list")
-@click.argument('status', default='all')
+@click.argument('status', default='all', type=str)
 def cli_list(status: Literal["unsubmitted", "submitted", "discarded", "all"]):
     with no_stack_trace():
         runs = commands.mar_list_names(status)
@@ -92,27 +95,38 @@ def cli_list(status: Literal["unsubmitted", "submitted", "discarded", "all"]):
 
 
 @mar.command("leaderboard")
-@click.argument('status', default='all')
+@click.argument('status', default='all', type=str)
 def cli_leaderboard(status: Literal["unsubmitted", "submitted", "discarded", "all"]):
     with no_stack_trace():
         commands.mar_display_leaderboard(status)
 
 @mar.command("load")
-@click.argument('name', default=None)
+@click.argument('name', type=str)
 def cli_load(name: str):
     with no_stack_trace():
         commands.mar_load(name)
 
+
 @mar.command("config")
-@click.option('--work_dir', default="")
-@click.option('--author', default="")
-@click.option('--max_time', default="")
-@click.option('--timeout', default="")
-@click.option('--top_k', default="")
-@click.option('--n_neighbors', default="")
+# Some of those options can have None as the value
+# so we have to use "" as the default which is not an allowed value
+@click.option("--work_dir", default="", type=str)
+@click.option("--author", default="", type=str)
+@click.option("--max_time", default="")
+@click.option("--timeout", default="")
+@click.option("--top_k", default="")
+@click.option("--n_neighbors", default="")
+@click.option("--copy_logger", default="")
 def cli_config(
-    work_dir=..., author=..., max_time=..., timeout=..., top_k=..., n_neighbors=...
+    work_dir=...,
+    author=...,
+    max_time=...,
+    timeout=...,
+    top_k=...,
+    n_neighbors=...,
+    copy_logger=...,
 ):
+    """Edit the config. To pass None, pass "None" string."""
     with no_stack_trace():
         commands.mar_config(
             work_dir=work_dir,
@@ -121,7 +135,9 @@ def cli_config(
             timeout=timeout,
             top_k=top_k,
             n_neighbors=n_neighbors,
+            copy_logger=copy_logger,
         )
+
 
 @mar.command("discard")
 @click.argument('names', nargs=-1, type=str)

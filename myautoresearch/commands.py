@@ -17,6 +17,7 @@ import yaml
 from . import _utils
 from .evaluate_template import EVALUATE_TEMPLATE
 from .logger import Logger
+from . import prompts
 
 
 def _toint(x):
@@ -41,6 +42,19 @@ def _get_root_and_config() -> tuple[Path, dict]:
 
     return root, config
 
+
+DEFAULT_CONFIG = dict(
+    work_dir = "workdir",
+    author = None,
+    max_time = None,
+    timeout = None,
+    top_k = 10,
+    n_neighbors = 2,
+    copy_logger = False,
+)
+FLOAT_CONFIG_KEYS = ("max_time", "timeout")
+INT_CONFIG_KEYS = ("top_k", "n_neighbors")
+BOOL_CONFIG_KEYS = ("copy_logger", )
 
 def mar_init(preset: str | None = None):
     """Initializes a new project."""
@@ -83,16 +97,7 @@ def mar_init(preset: str | None = None):
     # config
     if not(root / "config.yaml").exists():
 
-        config = dict(
-            work_dir = "workdir",
-            author = None,
-            max_time = None,
-            timeout = None,
-            top_k = 10,
-            n_neighbors = 2,
-        )
-
-        _utils.write_yaml(config, root / "config.yaml")
+        _utils.write_yaml(DEFAULT_CONFIG, root / "config.yaml")
 
 
 # Note: Summary is meant to show submitted runs, because it is quite verbose.
@@ -291,46 +296,15 @@ def mar_display_leaderboard(status: Literal["unsubmitted", "submitted", "discard
                 echo_leaderboard_metrics(run, rank, run is current_run)
 
 
-
-MAR_INSTRUCTION = """# Instructions
-
-To evaluate a run, use the `mar evaluate` shell command. Pass the following flags:
-
---file TEXT: name of the python file to submit for evaluation, e.g. "algorithm.py".
---object TEXT: name of the item (class, object, variable) that will be imported from specified file and evaluated. The object is imported as `from <file> import <object>`.
---name TEXT: unique descriptive name for this run.
---description TEXT: describe your algorithm. The description should be concise but detailed, it needs to contain all information necessary to recreate the run.
-
-Useful optional flags for `mar evaluate`:
---extra-files file1.py file2.py: Include additional files needed for evaluation (e.g., helper modules, data files).
---overwrite: Overwrite an existing unsubmitted run with the same name.
-
-After running the command, the results of evaluation will be displayed in the terminal. You can also display results manually by running `mar leaderboard`. Keep trying to improve your algorithm and beat the current best run.
-
-
-Finally, submit your best run using `mar submit` shell command. Always submit your best attempt, even if it failed, since it will be useful to know what works and what doesn't. Pass the following flags:
-
---name TEXT: the same name as you passed to `mar evaluate`. You can list all names via `mar list unsubmitted`.
---result TEXT: describe results of your experiments - what did you try, what worked, what didn't work, did your best attempt beat current leader, can it be improved. This will be shown in previously submitted runs summary next to the description. The summary already shows all metric values, don't duplicate them here."""
-
-ModifierLiteral = Literal["explore", "exploit", "novel", "analyse"]
-MODIFIERS: dict[ModifierLiteral, str] = {
-    "explore": "The goal of this session is exploration. Instead of incremental modifications to existing solutions from the leaderboard, try approaches that have not been explored yet.",
-    "exploit": "The goal of this session is exploitation - analyze the leaderboard and focus on the most promising approaches.",
-    "novel": "The goal of this session is to explore novel approaches. Instead of trying known solutions, try to design your own algorithm from scratch. It should be new, not a modification of an existing solution.",
-    "analyse": "The goal of this session is to perform a deep analysis of the problem. Analyze the problem thoroughly before designing a solution, find new approaches that could be missed by tackling the problem head-on.",
-}
-
-def mar_prompt(modifier: ModifierLiteral | None = None):
+def mar_prompt(modifier: prompts.ModifierLiteral | None = None):
     """Prompt for the AI agent."""
     root, config = _get_root_and_config()
 
     task = _utils.read_text(root / "task.md").strip()
 
-    aftersummary = "If you'd like to see submitted runs again, you can use `mar summary` command. You can also load the source code of any run using `mar load <name>`, but use it only if necessary."
-    s = f"{task}\n\n\n{MAR_INSTRUCTION}\n\n\n# Runs\n\n{mar_summary()}\n\n{aftersummary}"
+    s = f"{task}\n\n\n{prompts.MAR_INSTRUCTION}\n\n\n# Runs\n\n{mar_summary()}\n\n{prompts.AFTER_SUMMARY_RUNS}"
     if modifier is not None:
-        s = f"{s}\n\nThis session was started with `{modifier}` instruction. Follow the instruction closely as it will help future sessions:\n{MODIFIERS[modifier]}"
+        s = f"{s}\n\n{prompts.MODIFIER_INSTRUCTION.format(modifier_name=modifier, modifier=prompts.MODIFIERS[modifier])}"
 
     return s
 
@@ -372,7 +346,7 @@ def mar_start():
 
     _initialize_session(root, config)
 
-def mar_evaluate(file: str, object: str, name: str, description: str, extra_files: tuple[str, ...] = (), overwrite=False, baseline=False):
+def mar_evaluate(file: str, object: str, name: str, description: str, extra_files: tuple[str, ...] = (), overwrite=False, baseline=False, author=None):
     """
     Evaluates a submission.
     1. Creates a new dir in ``runs/unsubmitted`` folder.
@@ -474,16 +448,17 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
     time_sec = time.time() - start_sec
     click.echo(f"Run finished in {time_sec:.2f} seconds.")
 
-    # if (eval_dir / "logger.npz").exists():
-    #     try:
-    #         loggers_dir = root / work_dir_name / "loggers"
-    #         if not loggers_dir.exists(): loggers_dir.mkdir()
-    #         shutil.copyfile(eval_dir / "logger.npz", loggers_dir / f"logger_{name}.npz")
-    #         logger = Logger.from_file(loggers_dir / f"logger_{name}.npz")
+    if config.get("copy_logger", False):
+        if (eval_dir / "logger.npz").exists():
+            try:
+                loggers_dir = root / work_dir_name / "loggers"
+                if not loggers_dir.exists(): loggers_dir.mkdir()
+                shutil.copyfile(eval_dir / "logger.npz", loggers_dir / f"logger_{name}.npz")
+                logger = Logger.from_file(loggers_dir / f"logger_{name}.npz")
 
-    #         click.echo(f'\n`loggers/logger_{name}.npz` was saved to working directory. If you\'d like to inspect it, you can load it by running `from myautoresearch import Logger; logger = Logger.from_file("logger.npz")`. Use `logger.to_numpy(metric_name)` to load metrics for each step as an array. The following metrics were saved:\n{tuple(logger.keys())}\n')
-    #     except Exception as e:
-    #         warnings.warn(f"WARNING: failed to load the logger (this is likely an issue with evaluation script):\n{e}.")
+                click.echo(f'\n`loggers/logger_{name}.npz` was saved to working directory. If you\'d like to inspect it, you can load it by running `from myautoresearch import Logger; logger = Logger.from_file("logger.npz")`. Use `logger.to_numpy(metric_name)` to load metrics for each step as an array. The following metrics were saved:\n{tuple(logger.keys())}\n')
+            except Exception as e:
+                warnings.warn(f"WARNING: failed to load the logger (this is likely an issue with evaluation script):\n{e}.")
 
     if should_delete:
         if timed_out: click.echo(f"Run `{name}` was deleted because the execution was timed out.")
@@ -523,6 +498,9 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
     nanos = time.time_ns()
     dt = datetime.fromtimestamp(nanos / 1e9)
 
+    if author is None or author.strip() == "": author = config.get("author", None)
+    if baseline: author = None
+
     # Save info
     info = {
         "file": file,
@@ -533,7 +511,7 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
         "baseline": baseline,
         "feasible": feasible,
         "feasibility": feasibility,
-        "author": config.get("author", None),
+        "author": author,
         "args": result.args if result is not None else None,
         "start_dt": dt.strftime('%Y-%m-%d %H-%M-%S'),
         "start_sec": start_sec,
@@ -655,29 +633,39 @@ def _is_set(x):
     if isinstance(x, str) and len(x) == 0: return False
     return True
 
-def mar_config(work_dir,
-            author,
-            max_time,
-            timeout,
-            top_k,
-            n_neighbors):
+def mar_config(work_dir, author, max_time, timeout, top_k, n_neighbors, copy_logger):
     """Modify config file through terminal e.g. ``mar config --author=Qwen3.5``"""
+    kwargs = locals().copy()
+
     root, config = _get_root_and_config()
 
-    if _is_set(work_dir): config["work_dir"] = work_dir
-    if _is_set(author): config["author"] = author
-    if _is_set(max_time):
-        if max_time is not None: max_time = float(max_time)
-        config["max_time"] = max_time
-    if _is_set(timeout):
-        if timeout is not None: timeout = float(timeout)
-        config["timeout"] = timeout
-    if _is_set(top_k):
-        if top_k is not None: top_k = int(top_k)
-        config["top_k"] = top_k
-    if _is_set(n_neighbors):
-        if n_neighbors is not None: n_neighbors = int(n_neighbors)
-        config["n_neighbors"] = n_neighbors
+    for k,v in kwargs.items():
+        if k in DEFAULT_CONFIG:
+
+            # Add defaults if missing
+            if k not in config: config[k] = DEFAULT_CONFIG[k]
+
+            # Skip unset items, we can't have ... as default in click.option
+            # So instead defaults are empty strings
+            if v is ... or isinstance(v, str) and len(v) == 0: continue
+
+            # click might convert None to string
+            if v.strip().lower() == "None": v = None
+
+            # Convert to appropriate type
+            if v is not None:
+                if k in FLOAT_CONFIG_KEYS: v = float(v)
+                elif k in INT_CONFIG_KEYS: v = int(v)
+                elif k in BOOL_CONFIG_KEYS:
+                    if isinstance(v, str):
+                        if v.strip().lower() == "true": v = True
+                        elif v.strip().lower() == "false": v = False
+                        else: raise RuntimeError(f'Invalid value for boolean parameter "{k}": `{v}`')
+                    else:
+                        v = bool(v)
+
+            # Set new value
+            config[k] = v
 
     _utils.write_yaml(config, root / "config.yaml", )
 
@@ -702,6 +690,7 @@ def mar_reevaluate():
     (root / "runs" / "backup").mkdir(exist_ok=True)
     backup_dir = (root / "runs" / "backup" / dt)
     shutil.copytree(root / "runs" / "submitted", backup_dir)
+    click.echo(f'Current submitted runs have been backed up to "{backup_dir}".')
 
     sorted_dirs = list(submitted.iterdir())
     sorted_dirs.sort(key = _sort_key)
@@ -742,19 +731,21 @@ def mar_reevaluate():
 
                 except Exception as e:
                     if backup_dir.is_dir() and len(os.listdir(backup_dir)) > 0:
-                        click.echo(
-                            f"Reevaluation of run `{info['name']}` failed:"
-                            f"\n{e}\nReevaluation was cancelled."
-                        )
+
                         shutil.rmtree(root / "runs" / "submitted")
                         (root / "runs" / "submitted").mkdir()
                         shutil.move(backup_dir, root / "runs" / "submitted")
+
+                        click.echo(
+                            f"Reevaluation of run `{info['name']}` failed:\n{e}\n"
+                            f"Reevaluation was cancelled and submitted runs were restored from backup dir."
+                        )
 
                     else:
                         click.echo(
                             f"Reevaluation of run `{info['name']}` failed:"
                             f"\n{e}\nReevaluation was cancelled. "
-                            "The backup couldn't be restored (1 run may be missing)"
+                            "WARNING: The backup couldn't be restored."
                         )
 
                     success = False

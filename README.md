@@ -55,21 +55,25 @@ Edit `config.yaml` to set your preferences:
 work_dir: "workdir"
 
 # Optionally specify name of the model, it will be shown in summaries.
-author: "Qwen3.5"
+author: "Qwen3.5" # default: null
 
 # Maximum runtime in seconds for a feasible run
-max_time: 60
+max_time: 60 # default: null
 
 # Timeout for evaluation (hard limit). Setting to twice the max_time is good
 # to allow the agent to see the metrics even if run is infeasible.
-timeout: 120
+timeout: 120 # default: null
 
 # Number of top runs to show in leaderboard.
-top_k: 10
+top_k: 10 # default: 10
 
 # If a run is not in top_k runs, it will show it at the bottom of the leaderboard
 # along with this many neighboring runs by rank
-n_neighbors: 2
+n_neighbors: 2 # default: 2
+
+# if True, logger with per-step metrics will be copied to working directory
+# and a short instruction will be displayed on how to inspect it after each evaluation.
+copy_logger: true # default: false
 ```
 
 ### 3. Define evaluation script
@@ -185,10 +189,13 @@ This prompt is usually sufficient as `mar start` outputs detailed instructions o
 
 If running in a loop, you can use modifiers:
 
-- **explore**: The goal of this session is exploration. Instead of incremental modifications to existing solutions from the leaderboard, try approaches that have not been explored yet.
-- **exploit**: The goal of this session is exploitation - analyze the leaderboard and focus on the most promising approaches.
-- **novel**: The goal of this session is to explore novel approaches. Instead of trying known solutions, try to design your own algorithm from scratch. It should be new, not a modification of an existing solution.
-- **analyse**: The goal of this session is to perform a deep analysis of the problem. Analyze the problem thoroughly before designing a solution, find new approaches that could be missed by tackling the problem head-on.
+- **explore**: The goal of this session is exploration. Instead of incremental modifications to existing solutions from the leaderboard, you must try approaches that are not explored or under-explored in the leaderboard.
+- **exploit**: The goal of this session is exploitation - you must analyze the leaderboard and focus on the most promising approaches.
+- **novel**: The goal of this session is to explore novel approaches. Instead of trying known solutions, you must design your own algorithm from scratch. It should be new, not a modification of an existing solution.
+- **analyse**: The goal of this session is to perform a deep analysis of the problem. You must analyze the problem thoroughly before designing a solution, find new approaches that could be missed by tackling the problem head-on.
+- **unusual**: The goal of this session is to explore wild and unusual solutions. You must design and evaluate the most unconventional solutions you can come up with.
+- **research**: The goal of this session is research. You must use your web tools to search for latest and most efficient algorithms - look up studies, benchmarks, implementations, and evaluate the most promising approaches.
+- **inspect**: The goal of this session is inspection. You must focus on manually evaluating and debugging solutions  through comprehensive testing using custom evaluation scripts in order to identify and bottlenecks and areas of improvement. Analyze best solutions in the leaderboard as well as your ideas. Compare your results with `mar evaluate` to see how your evaluation methodology maps onto the final score. Design better solutions based on your comprehensive analysis.
 
 Put the name of the modifier after `mar start` in the prompt, for example `mar start explore`. Alternating between modifiers can improve the diversity of the solutions.
 
