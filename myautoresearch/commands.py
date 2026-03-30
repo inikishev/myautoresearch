@@ -1,5 +1,4 @@
-import fcntl
-import math
+"""Commands, they shouldn't be used directly, but rather through cli."""
 import os
 import shutil
 import signal
@@ -15,8 +14,7 @@ from typing import Literal
 import click
 import numpy as np
 
-from . import _utils, prompts
-from .evaluate_template import EVALUATE_TEMPLATE
+from . import _utils, strings
 from .logger import Logger
 
 DEFAULT_CONFIG = dict(
@@ -32,9 +30,8 @@ FLOAT_CONFIG_KEYS = ("max_time", "timeout")
 INT_CONFIG_KEYS = ("top_k", "n_neighbors")
 BOOL_CONFIG_KEYS = ("copy_logger", )
 
-def mar_init(preset: str | None = None):
+def mar_init():
     """Initializes a new project."""
-    # TODO: add presets
 
     root = _utils.get_cwd()
 
@@ -54,10 +51,7 @@ def mar_init(preset: str | None = None):
 
     # readme
     if not (root / "README.md").exists():
-        _utils.write_text(
-            "<!-- This file is not shown to the AI agent. You can fill in the prompt template and copy it from here. -->\n## Prompt:\nYour goal will be to develop <describe the task>. Run `mar start` in the shell and follow the instructions.",
-            root / "README.md"
-        )
+        _utils.write_text(strings.README, root / "README.md")
 
     # prompts
     if not (root / "task.md").exists(): _utils.write_text("## Task\n\n## API\n\n## Evaluation\n\n", root / "task.md")
@@ -68,7 +62,7 @@ def mar_init(preset: str | None = None):
         _utils.write_text("# initialization script", root /  "scripts" / "initialize.py")
 
     if not (root /  "scripts" / "evaluate.py").exists():
-        _utils.write_text(EVALUATE_TEMPLATE, root /  "scripts" / "evaluate.py")
+        _utils.write_text(strings.EVALUATE_TEMPLATE, root /  "scripts" / "evaluate.py")
 
     # config
     if not(root / "config.yaml").exists():
@@ -271,15 +265,15 @@ def mar_display_leaderboard(status: Literal["unsubmitted", "submitted", "discard
                 echo_leaderboard_metrics(run, rank, run is current_run)
 
 
-def mar_prompt(modifier: prompts.ModifierLiteral | None = None):
+def mar_prompt(modifier: strings.ModifierLiteral | None = None):
     """Prompt for the AI agent."""
     root, config = _utils.get_root_and_config()
 
     task = _utils.read_text(root / "task.md").strip()
 
-    s = f"{task}\n\n\n{prompts.MAR_INSTRUCTION.strip()}\n\n\n# Runs\n\n{mar_summary()}\n\n{prompts.AFTER_SUMMARY_RUNS}"
+    s = f"{task}\n\n\n{strings.MAR_INSTRUCTION.strip()}\n\n\n# Runs\n\n{mar_summary()}\n\n{strings.AFTER_SUMMARY_RUNS}"
     if modifier is not None:
-        s = f"{s}\n\n{prompts.MODIFIER_INSTRUCTION.format(modifier_name=modifier, modifier=prompts.MODIFIERS[modifier]).strip()}"
+        s = f"{s}\n\n{strings.MODIFIER_INSTRUCTION.format(modifier_name=modifier, modifier=strings.MODIFIERS[modifier]).strip()}"
 
     return s
 

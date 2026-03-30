@@ -14,13 +14,14 @@ from .logger import Logger
 
 
 class Evaluator(ABC):
+    """Base class evaluation logic. Children must define ``evaluate`` method."""
     def __init__(self, argv: list[str] = sys.argv):
         self.object, self._args = _utils.import_object(argv)
         self._metrics: dict[str, _utils.Metric] = {}
         self.history = Logger()
         self._feasibility = []
 
-        self.file_logger = _utils.get_logger("debug.log")
+        self.file_logger = _utils.get_file_logger("debug.log")
         """Silently log to a file."""
 
     @abstractmethod
@@ -78,10 +79,10 @@ class Evaluator(ABC):
         )
 
     def set_infeasible(self, reason: str):
-        """Mark this run as infeasible and specify a reason that AI will see."""
+        """Mark this run as infeasible and specify a reason that AI agent will see."""
         self._feasibility.append({"feasible": False, "reason": reason})
 
-    def save(self):
+    def _save(self):
         if len(self.history) > 0:
             self.history.save("logger.npz")
         _utils.write_json({k: v.to_tuple() for k,v in self._metrics.items()}, "metrics.json")
@@ -92,6 +93,7 @@ def run(evaluator: Evaluator):
 
     try:
         with open(root / 'eval.lock', 'w', encoding='utf-8') as f:
+            # Create a lock, and make sure no existing evaluation scripts are running
             try:
                 fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError:
@@ -102,7 +104,7 @@ def run(evaluator: Evaluator):
                     raise RuntimeError("Another evaluation script is already running and couldn't be terminated.") from e
 
             evaluator.evaluate()
-            evaluator.save()
+            evaluator._save()
 
     finally:
         os.remove(root / 'eval.lock')

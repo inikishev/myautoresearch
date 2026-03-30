@@ -17,9 +17,18 @@ import numpy as np
 import psutil
 import yaml
 from scipy.stats import rankdata
+from contextlib import contextmanager
 
+class NoStackTraceException(Exception):
+    """Use this exception with ``no_stack_trace`` context to hide stack trace where it is not needed to save tokens."""
 
-class NoStackTraceException(Exception): pass
+@contextmanager
+def no_stack_trace():
+    """Context manager to display ``NoStackTraceException`` errors without stack trace"""
+    try:
+        yield
+    except NoStackTraceException as e:
+        click.echo(f"ERROR: {e}")
 
 def read_json(file: str | os.PathLike):
     with open(file, "r", encoding='utf-8') as f:
@@ -41,9 +50,9 @@ def import_object(argv: list[str]):
 
     # argv will have
     # --file
-    # --obj
+    # --object
+    # --root
     # --name
-    # --description
 
     if "__myautoresearch_evaluate__.py" in argv: argv.remove("__myautoresearch_evaluate__.py")
     parser = argparse.ArgumentParser(description="Evaluates scripts.")
@@ -222,7 +231,7 @@ def find_run_dir_by_name(name: str, root: Path) -> Path:
 
     return target_run_dir
 
-def get_logger(file):
+def get_file_logger(file):
     logger = logging.getLogger("myautoresearch")
 
     for handler in logger.handlers:
@@ -237,6 +246,8 @@ def get_logger(file):
 
 
 def cleanup_orphans(script_name: str = "__myautoresearch_evaluate__.py", warn=True):
+    """Cleans up unterminated evaluation scripts. Some cli tools like iflow don't terminate them correctly,
+    and that causes them to use resources in the background and results in incorrect timings in benchmarks."""
     current_pid = os.getpid()
 
     for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
@@ -270,6 +281,8 @@ def maybe_strip(s):
     return s
 
 def get_root_and_config() -> tuple[Path, dict]:
+    """Checks if command is ran from workdir; checks if a run was suddenly terminated and terminates old evaluations;
+    Returns root path and config."""
     cwd = get_cwd()
     root = cwd.parent
 

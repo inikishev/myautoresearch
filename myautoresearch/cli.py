@@ -1,18 +1,11 @@
-"""cli"""
+"""CLI interface"""
 import os
 from typing import Literal
 
 import click
 from contextlib import contextmanager
-from . import _utils, commands, prompts
+from . import _utils, commands, strings
 
-@contextmanager
-def no_stack_trace():
-    """Removes stack trace from mar exceptions to avoid useless tokens"""
-    try:
-        yield
-    except _utils.NoStackTraceException as e:
-        print(f"ERROR: {e}")
 
 @click.group('mar')
 def mar():
@@ -20,22 +13,24 @@ def mar():
 
 
 @mar.command("init")
-@click.argument('work_dir_name', type=str, default="workdir")
-def cli_init(work_dir_name: str):
-    with no_stack_trace():
-        commands.mar_init(work_dir_name)
+def cli_init():
+    """Initializes a new project in current directory, creating the directory structure."""
+    with _utils.no_stack_trace():
+        commands.mar_init()
         click.echo("New project has been initialized.")
 
 @mar.command("start")
 @click.argument('modifier', type=str, default=None)
-def cli_start(modifier: prompts.ModifierLiteral | None = None):
-    with no_stack_trace():
+def cli_start(modifier: strings.ModifierLiteral | None = None):
+    """Cleans working directory, moves unsubmitted runs to discarded, and displays instructions for the AI agent."""
+    with _utils.no_stack_trace():
         commands.mar_start()
         click.echo(commands.mar_prompt(modifier))
 
 @mar.command("summary")
 def cli_summary():
-    with no_stack_trace():
+    """Displays a summary of submitted runs, including their descriptions, results and metrics."""
+    with _utils.no_stack_trace():
         click.echo(commands.mar_summary())
 
 @mar.command("evaluate")
@@ -60,7 +55,8 @@ def evaluate(
     submit: bool = False,
     author: str | None = None
 ):
-    with no_stack_trace():
+    """Evaluates a run, saves it to ``unsubmitted``, and displays a leaderboard."""
+    with _utils.no_stack_trace():
         commands.mar_evaluate(
             file = file,
             object = object,
@@ -79,15 +75,20 @@ def evaluate(
 @click.option('-n', '--name', "name", help="Name for this algorithm/run, should be the same as one passed to `run` command.", type=str)
 @click.option('-r', '--result', "result", help="Describe results of your experiments - what did you try, what worked, what didn't work, did your best attempt beat current leader, can it be improved. This will be shown in previously submitted runs summary next to the description. The summary already shows all metric values, don't duplicate them here.", type=str)
 def cli_submit(name: str, result: str | None):
-    with no_stack_trace():
+    """Submit a run with a description of the results, moving it from ``unsubmitted`` to ``submitted``"""
+    with _utils.no_stack_trace():
         return commands.mar_submit(name=name, result=result)
 
 @mar.command("list")
 @click.argument('what', default='all', type=str)
 def cli_list(what: Literal["unsubmitted", "submitted", "discarded", "all", "modifiers"]):
-    with no_stack_trace():
+    """List either names of runs with specified status, of modifier names."""
+    with _utils.no_stack_trace():
+
         if what == "modifiers":
-            click.echo(f"{list(prompts.MODIFIERS.keys())}")
+            inner = '", "'.join(strings.MODIFIERS.keys())
+            click.echo(f'"{inner}"')
+
         else:
             runs = commands.mar_list_names(what)
             if len(runs) == 0:
@@ -100,13 +101,17 @@ def cli_list(what: Literal["unsubmitted", "submitted", "discarded", "all", "modi
 @mar.command("leaderboard")
 @click.argument('status', default='all', type=str)
 def cli_leaderboard(status: Literal["unsubmitted", "submitted", "discarded", "all"]):
-    with no_stack_trace():
+    """Displays a leaderboard."""
+    with _utils.no_stack_trace():
         commands.mar_display_leaderboard(status)
 
 @mar.command("load")
 @click.argument('name', type=str)
 def cli_load(name: str):
-    with no_stack_trace():
+    """Loads run with specified name to working directory."""
+    # this function is for AI agents to inspect existing runs
+    # as they are only supposed to have access to workdir
+    with _utils.no_stack_trace():
         commands.mar_load(name)
 
 
@@ -130,7 +135,7 @@ def cli_config(
     copy_logger=...,
 ):
     """Edit the config. To pass None, pass "None" string."""
-    with no_stack_trace():
+    with _utils.no_stack_trace():
         commands.mar_config(
             work_dir=work_dir,
             author=author,
@@ -145,13 +150,16 @@ def cli_config(
 @mar.command("discard")
 @click.argument('names', nargs=-1, type=str)
 def cli_discard(names: tuple[str]):
-    with no_stack_trace():
+    """Discard runs with specified names."""
+    with _utils.no_stack_trace():
         commands.mar_discard(*names)
 
 
 @mar.command("reevaluate")
 def cli_reevaluate():
-    with no_stack_trace():
+    """Reevaluates all submitted runs. Use if you've modified evaluation script.
+    This will delete all runs with status other than submitted."""
+    with _utils.no_stack_trace():
         commands.mar_reevaluate()
 
 
@@ -160,11 +168,13 @@ def cli_reevaluate():
 @click.argument('old', type=str)
 @click.argument('new', type=str)
 def cli_rename(old: str, new: str):
-    with no_stack_trace():
+    """Renames a run."""
+    with _utils.no_stack_trace():
         commands.mar_rename(old=old, new=new)
 
 
 @mar.command("cleanup_processes")
 def cli_cleanup_processes():
-    with no_stack_trace():
+    """Terminates all currently running evaluation scripts."""
+    with _utils.no_stack_trace():
         _utils.cleanup_orphans()

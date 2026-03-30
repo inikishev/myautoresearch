@@ -43,3 +43,24 @@ MODIFIERS: dict[ModifierLiteral, str] = {
     "inspect": "The goal of this session is inspection. You must focus on manually evaluating and debugging solutions  through comprehensive testing using custom evaluation scripts in order to identify and bottlenecks and areas of improvement. Analyze best solutions in the leaderboard as well as your ideas. Compare your results with `mar evaluate` to see how your evaluation methodology maps onto the final score. Design better solutions based on your comprehensive analysis. Note: but mindful of time within your custom evaluation scripts, use appropirate timeouts."
 }
 
+EVALUATE_TEMPLATE = """from click import echo # use instead of print
+from myautoresearch import Evaluator, run
+
+class MyEvaluator(Evaluator):
+    def evaluate(self):
+        # the evaluated object is `self.object`
+        pass
+
+
+if __name__ == "__main__":
+    run(MyEvaluator())
+"""
+
+README = """# README
+
+This file is not shown to the AI agent. You can fill in the prompt template below and copy it.
+
+## Prompt
+
+Your goal will be to develop {TASK}. Run `mar start` in the shell and follow the instructions.
+"""

@@ -1,4 +1,4 @@
-<h1 align='center'>myauresearch</h1>
+<h1 align='center'>myautoresearch</h1>
 
 My take on autoresearch. You shouldn't use it yet because I need to like produce some examples and make readme better etc...
 

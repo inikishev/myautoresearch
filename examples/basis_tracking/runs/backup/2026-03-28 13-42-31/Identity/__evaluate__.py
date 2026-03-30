@@ -133,4 +133,4 @@ class BasisEvaluator(Evaluator):
 if __name__ == "__main__":
     evaluator = BasisEvaluator()
     evaluator.run()
-    evaluator.save()
+    evaluator._save()

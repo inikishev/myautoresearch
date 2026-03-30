@@ -33,7 +33,7 @@ keywords = ["autoresearch"]
 [project.urls]
 Homepage = "https://github.com/inikishev/myautoresearch"
 Repository = "https://github.com/inikishev/myautoresearch"
-Issues = "https://github.com/inikishev/myautoresearch/isses"
+Issues = "https://github.com/inikishev/myautoresearch/issues"
 
 
 [tool.pytest.ini_options]
