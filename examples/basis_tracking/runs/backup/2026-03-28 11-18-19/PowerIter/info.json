@@ -1,0 +1,32 @@
+{
+    "file": "source.py",
+    "extra_files": [],
+    "object_name": "PowerIter",
+    "name": "PowerIter",
+    "description": "Initializes via eigendecomposition on 1st step, then performs 1 round of power iteration each step: B <- Q from QR(A @ B)",
+    "baseline": true,
+    "feasible": true,
+    "feasibility": [],
+    "author": "MiMo V2 Pro Free",
+    "args": [
+        "/var/mnt/issd/dev/miniconda3/envs/pytorch313/bin/python3",
+        "__evaluate__.py",
+        "--file",
+        "source.py",
+        "--object",
+        "PowerIter"
+    ],
+    "start_dt": "2026-03-27 14-51-55",
+    "start_sec": 1774612294.019199,
+    "time_sec": 21.358676195144653,
+    "finished": true,
+    "config": {
+        "work_dir": "workdir",
+        "author": "MiMo V2 Pro Free",
+        "max_time": null,
+        "timeout": 120,
+        "top_k": 10,
+        "n_neighbors": 2
+    },
+    "result": null
+}

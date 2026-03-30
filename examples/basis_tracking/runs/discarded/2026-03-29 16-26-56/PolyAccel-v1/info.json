@@ -1,0 +1,34 @@
+{
+    "file": "final_approaches.py",
+    "extra_files": [],
+    "object_name": "PolynomialAccelerated",
+    "name": "PolyAccel-v1",
+    "description": "Polynomial-accelerated power iteration using Chebyshev-like T_2 polynomial. degree=2, freq=3.",
+    "baseline": false,
+    "feasible": true,
+    "feasibility": [],
+    "author": "GLM-5",
+    "args": [
+        "/var/mnt/issd/dev/miniconda3/envs/pytorch313/bin/python3",
+        "__myautoresearch_evaluate__.py",
+        "--file",
+        "final_approaches.py",
+        "--object",
+        "PolynomialAccelerated",
+        "--root",
+        "/var/home/jj/research/basis_tracking"
+    ],
+    "start_dt": "2026-03-29 16-25-22",
+    "start_sec": 1774790633.9403722,
+    "time_sec": 88.30470442771912,
+    "finished": true,
+    "config": {
+        "work_dir": "workdir",
+        "author": "GLM-5",
+        "max_time": null,
+        "timeout": 360,
+        "top_k": 10,
+        "n_neighbors": 2
+    },
+    "result": "Polynomial-accelerated power iteration using Chebyshev-like T_2 polynomial. Applies Y = scale*AAB - B where AAB = A*(A*B). The polynomial T_2(A) = 2A^2 - I accelerates convergence compared to standard power iteration. Key insight: polynomial acceleration provides faster convergence per iteration, allowing freq=3 with good explained variance."
+}

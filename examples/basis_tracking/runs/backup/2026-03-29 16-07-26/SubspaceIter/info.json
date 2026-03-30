@@ -1,0 +1,32 @@
+{
+    "file": "source.py",
+    "extra_files": [],
+    "object_name": "SubspaceIter",
+    "name": "SubspaceIter",
+    "description": "Initializes to eigendecomposition on 1st step, then performs 1 round of subspace iteration each step: B <- Q from QR(A @ B)",
+    "baseline": true,
+    "feasible": true,
+    "feasibility": [],
+    "author": null,
+    "args": [
+        "/var/mnt/issd/dev/miniconda3/envs/pytorch313/bin/python3",
+        "__evaluate__.py",
+        "--file",
+        "source.py",
+        "--object",
+        "SubspaceIter"
+    ],
+    "start_dt": "2026-03-28 14-06-19",
+    "start_sec": 1774695851.037323,
+    "time_sec": 128.45019578933716,
+    "finished": true,
+    "config": {
+        "work_dir": "workdir",
+        "author": "GLM-5",
+        "max_time": null,
+        "timeout": 360,
+        "top_k": 10,
+        "n_neighbors": 2
+    },
+    "result": null
+}

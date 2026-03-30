@@ -1,0 +1,32 @@
+{
+    "file": "algorithm.py",
+    "extra_files": [],
+    "object_name": "BasisUpdater",
+    "name": "LazyPowerIter-4",
+    "description": "Initializes to eigendecomposition, then performs 1 round of power iteration every 4 steps",
+    "baseline": true,
+    "feasible": true,
+    "feasibility": [],
+    "author": "GLM-5",
+    "args": [
+        "/var/mnt/issd/dev/miniconda3/envs/pytorch313/bin/python3",
+        "__evaluate__.py",
+        "--file",
+        "algorithm.py",
+        "--object",
+        "BasisUpdater"
+    ],
+    "start_dt": "2026-03-28 11-32-59",
+    "start_sec": 1774686703.4072928,
+    "time_sec": 76.1311731338501,
+    "finished": true,
+    "config": {
+        "work_dir": "workdir",
+        "author": "GLM-5",
+        "max_time": null,
+        "timeout": 360,
+        "top_k": 10,
+        "n_neighbors": 2
+    },
+    "result": ""
+}

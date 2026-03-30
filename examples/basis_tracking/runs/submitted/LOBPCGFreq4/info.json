@@ -1,0 +1,34 @@
+{
+    "file": "lobpcg_freq4.py",
+    "extra_files": [],
+    "object_name": "BasisUpdater",
+    "name": "LOBPCGFreq4",
+    "description": "LOBPCG for m<=100 with freq=4, single QR for two power iterations",
+    "baseline": false,
+    "feasible": true,
+    "feasibility": [],
+    "author": "GLM-5",
+    "args": [
+        "/var/mnt/issd/dev/miniconda3/envs/pytorch313/bin/python3",
+        "__myautoresearch_evaluate__.py",
+        "--file",
+        "lobpcg_freq4.py",
+        "--object",
+        "BasisUpdater",
+        "--root",
+        "/var/home/jj/research/basis_tracking"
+    ],
+    "start_dt": "2026-03-29 16-23-53",
+    "start_sec": 1774790550.822529,
+    "time_sec": 83.0356764793396,
+    "finished": true,
+    "config": {
+        "work_dir": "workdir",
+        "author": "GLM-5",
+        "max_time": null,
+        "timeout": 360,
+        "top_k": 10,
+        "n_neighbors": 2
+    },
+    "result": "LOBPCG-accelerated power iteration with freq=4, single QR for two power iterations, LOBPCG for m<=100. Key optimizations: 1) Single QR decomposition for two power iterations (saves ~25% time), 2) LOBPCG only for small matrices (m<=100) where it's efficient, 3) Frequency=4 provides optimal time vs explained variance tradeoff. The time savings more than compensate for slightly lower explained variance in the scoring formula."
+}

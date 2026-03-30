@@ -1,0 +1,34 @@
+{
+    "file": "source.py",
+    "extra_files": [],
+    "object_name": "Eigh",
+    "name": "Eigh",
+    "description": "Computes eigendecomposition every step",
+    "baseline": true,
+    "feasible": true,
+    "feasibility": [],
+    "author": null,
+    "args": [
+        "/var/mnt/issd/dev/miniconda3/envs/pytorch313/bin/python3",
+        "__myautoresearch_evaluate__.py",
+        "--file",
+        "source.py",
+        "--object",
+        "Eigh",
+        "--root",
+        "/var/home/jj/research/basis_tracking"
+    ],
+    "start_dt": "2026-03-29 16-13-08",
+    "start_sec": 1774789690.9182663,
+    "time_sec": 297.81432151794434,
+    "finished": true,
+    "config": {
+        "work_dir": "workdir",
+        "author": "GLM-5",
+        "max_time": null,
+        "timeout": 360,
+        "top_k": 10,
+        "n_neighbors": 2
+    },
+    "result": null
+}

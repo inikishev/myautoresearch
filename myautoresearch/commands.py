@@ -1,8 +1,8 @@
-import signal
 import fcntl
 import math
 import os
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -14,13 +14,10 @@ from typing import Literal
 
 import click
 import numpy as np
-import psutil
-import yaml
 
 from . import _utils, prompts
 from .evaluate_template import EVALUATE_TEMPLATE
 from .logger import Logger
-
 
 DEFAULT_CONFIG = dict(
     work_dir = "workdir",
@@ -390,9 +387,10 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
 
     with open(console_log_file, "a", encoding='utf-8') as console_log:
 
+        current_items = set(os.listdir(eval_dir))
+
         try:
 
-            current_items = set(os.listdir(eval_dir))
             result = subprocess.run(
                 [
                     sys.executable,
@@ -409,20 +407,6 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
                 stderr = subprocess.STDOUT,
                 timeout = timeout,
             )
-            new_items = set(os.listdir(eval_dir)).difference(current_items)
-
-            # copy over files that script has saved back to workdir
-            for item in new_items:
-                if not ((item.startswith((".", "__"))) or item in ("debug.log", )):
-                    tgt_path = (root / work_dir_name / item)
-                    try:
-                        if tgt_path.exists():
-                            if os.path.isfile(item): tgt_path.unlink()
-                            else: shutil.rmtree(tgt_path)
-                        if os.path.isfile(item): shutil.copy2(eval_dir / item, tgt_path)
-                        elif os.path.isdir(item): shutil.copytree(eval_dir / item, tgt_path)
-                    except Exception as e:
-                        warnings.warn(f"Failed to copy {eval_dir / item} to {tgt_path}:\n{e}")
 
             echo_console()
             finished = True
@@ -451,7 +435,31 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
     time_sec = time.time() - start_sec
     click.echo(f"Run finished in {time_sec:.2f} seconds.")
 
-    # copy console log over to eval dir and remove temporary directory
+    # Check that eval dir exists
+    if not eval_dir.exists():
+        raise _utils.NoStackTraceException(f"The evaluation directory {eval_dir} has been deleted. This may happen if you run two evaluations with the same name in parallel. Don't run multiple evaluations in parallel.")
+
+    # copy over files that script has saved back to workdir
+    new_items = set(os.listdir(eval_dir)).difference(current_items)
+    for item in new_items:
+
+        # Skip system files like __pycache__
+        if not ((item.startswith((".", "__"))) or item in ("debug.log", "logger.npz")):
+
+            tgt_path = (root / work_dir_name / item)
+
+            try:
+                if tgt_path.exists():
+                    if os.path.isfile(item): tgt_path.unlink()
+                    else: shutil.rmtree(tgt_path)
+
+                if os.path.isfile(item): shutil.copy2(eval_dir / item, tgt_path)
+                elif os.path.isdir(item): shutil.copytree(eval_dir / item, tgt_path)
+
+            except Exception as e:
+                warnings.warn(f"Failed to copy {eval_dir / item} to {tgt_path}:\n{e}")
+
+    # copy console log from temp to eval dir and remove temporary directory
     if console_log_file.exists():
         tgt_file = eval_dir / "console.log"
         if tgt_file.exists(): tgt_file.unlink()
@@ -459,15 +467,11 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
 
     shutil.rmtree(root / "temp", ignore_errors=True)
 
-    # Check that eval dir exists
-    if not eval_dir.exists():
-        raise _utils.NoStackTraceException(f"The evaluation directory {eval_dir} has been deleted. This may happen if you run two evaluations with the same name in parallel. Don't run multiple evaluations in parallel.")
 
-
+    # Copy logger to workdir and display short instruction if enabled in config
     if config.get("copy_logger", False):
         if (eval_dir / "logger.npz").exists():
 
-            # Copy logger to workdir
             try:
                 loggers_dir = root / work_dir_name / "loggers"
                 if not loggers_dir.exists(): loggers_dir.mkdir()
@@ -475,9 +479,11 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
                 logger = Logger.from_file(loggers_dir / f"logger_{name}.npz")
 
                 click.echo(f'\n`loggers/logger_{name}.npz` was saved to working directory. If you\'d like to inspect it, you can load it by running `from myautoresearch import Logger; logger = Logger.from_file("logger.npz")`. Use `logger.to_numpy(metric_name)` to load metrics for each step as an array. The following metrics were saved:\n{tuple(logger.keys())}\n')
+
             except Exception as e:
                 warnings.warn(f"WARNING: failed to load the logger (this is likely an issue with evaluation script):\n{e}.")
 
+    # Delete run if it failed and display a message
     if should_delete:
         if timed_out: click.echo(f"Run `{name}` was deleted because the execution was timed out.")
         else: click.echo(f"Run `{name}` was deleted because execution failed with an exception.")
@@ -513,13 +519,13 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
 
     _utils.write_json(feasibility, eval_dir / "feasibility.json")
 
+    # Save info.json to eval dir
     nanos = time.time_ns()
     dt = datetime.fromtimestamp(nanos / 1e9)
 
     if author is None or author.strip() == "": author = config.get("author", None)
     if baseline: author = None
 
-    # Save info
     info = {
         "file": file,
         "extra_files": extra_files,
@@ -540,6 +546,7 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
 
     _utils.write_json(info, eval_dir / "info.json")
 
+    # Display the leaderboard if run finished
     if finished:
         mar_display_leaderboard(current_run_dir=eval_dir)
 

@@ -1,0 +1,32 @@
+{
+    "file": "algorithm.py",
+    "extra_files": [],
+    "object_name": "BasisUpdater",
+    "name": "LazyPI-Rot6",
+    "description": "k<m: rotation (k×k eigh) + full PI every 6. k>=m small m: eigh. k>=m large m: full PI every 6.",
+    "baseline": false,
+    "feasible": true,
+    "feasibility": [],
+    "author": "MiMo V2 Pro Free",
+    "args": [
+        "/var/mnt/issd/dev/miniconda3/envs/pytorch313/bin/python3",
+        "__evaluate__.py",
+        "--file",
+        "algorithm.py",
+        "--object",
+        "BasisUpdater"
+    ],
+    "start_dt": "2026-03-27 15-17-14",
+    "start_sec": 1774613822.5485525,
+    "time_sec": 11.94035291671753,
+    "finished": true,
+    "config": {
+        "work_dir": "workdir",
+        "author": "MiMo V2 Pro Free",
+        "max_time": null,
+        "timeout": 120,
+        "top_k": 10,
+        "n_neighbors": 2
+    },
+    "result": "Score 34.7 vs previous best 24.9 (LazyPowerIter-4). Key insight: for k<<m (10x2000 case), use rotation (k×k eigh of Bk^T A Bk) between full PI steps to maintain diagonalization quality. For k>=m (2000x2000), use lazy full PI every 6 steps. For m<=500, full eigh each step is cheap. The rotation step for k<m improves EV from 0.907 to 0.938 at negligible cost (0.22ms). Full PI every 6 gives good EV (0.943/0.938) at ~8.5ms/step amortized."
+}

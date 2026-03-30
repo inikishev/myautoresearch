@@ -1,0 +1,32 @@
+{
+    "file": "algorithm.py",
+    "extra_files": [],
+    "object_name": "BasisUpdater",
+    "name": "PI-Freq6-7",
+    "description": "PI frequency: every 6 for k<m, every 7 for k>=m. Same as AdaptivePI-7-v2.",
+    "baseline": false,
+    "feasible": true,
+    "feasibility": [],
+    "author": "GLM-5",
+    "args": [
+        "/var/mnt/issd/dev/miniconda3/envs/pytorch313/bin/python3",
+        "__evaluate__.py",
+        "--file",
+        "algorithm.py",
+        "--object",
+        "BasisUpdater"
+    ],
+    "start_dt": "2026-03-27 16-52-12",
+    "start_sec": 1774619521.090688,
+    "time_sec": 11.689267873764038,
+    "finished": true,
+    "config": {
+        "work_dir": "workdir",
+        "author": "GLM-5",
+        "max_time": null,
+        "timeout": 120,
+        "top_k": 10,
+        "n_neighbors": 2
+    },
+    "result": "Score 35.48 vs previous best 35.33 (AdaptivePI-7-v2). Same algorithm as AdaptivePI-7-v2 with slightly faster time (0.00822ms vs 0.00830ms). Explored Newton-Schulz (doesn't work - gives polar factor not eigenvectors), randomized subspace iteration (slower at 0.018ms), and other methods. Newton-Schulz fundamentally doesn't work for this problem because it computes the polar decomposition, not the eigendecomposition. The key insight is that for Z=A@B where B is orthogonal, Newton-Schulz gives the orthogonal polar factor which is NOT equal to the eigenvector matrix of A."
+}

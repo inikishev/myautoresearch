@@ -1,0 +1,32 @@
+{
+    "file": "algorithm.py",
+    "extra_files": [],
+    "object_name": "BasisUpdater",
+    "name": "SubspaceIter3FromRandomB",
+    "description": "Pure subspace iteration from random orthogonal B. Freq=3. Random init spreads energy across all eigenvectors for faster convergence than identity.",
+    "baseline": false,
+    "feasible": true,
+    "feasibility": [],
+    "author": "MiMo V2 Pro Free",
+    "args": [
+        "/var/mnt/issd/dev/miniconda3/envs/pytorch313/bin/python3",
+        "__evaluate__.py",
+        "--file",
+        "algorithm.py",
+        "--object",
+        "BasisUpdater"
+    ],
+    "start_dt": "2026-03-28 16-05-50",
+    "start_sec": 1774703078.2215164,
+    "time_sec": 72.68203830718994,
+    "finished": true,
+    "config": {
+        "work_dir": "workdir",
+        "author": "MiMo V2 Pro Free",
+        "max_time": null,
+        "timeout": 360,
+        "top_k": 10,
+        "n_neighbors": 2
+    },
+    "result": "Pure subspace iteration from random orthogonal B, freq=3. No eigendecomposition at all. Random orthogonal initialization converges slightly faster than identity by spreading energy across all eigenvectors. Key improvements: 1) No eigh initialization (eigh on rank-1 A was counterproductive), 2) Random orthogonal B instead of identity, 3) freq=3 optimal. Score formula heavily weights explained variance^10, so even small ev improvements matter."
+}

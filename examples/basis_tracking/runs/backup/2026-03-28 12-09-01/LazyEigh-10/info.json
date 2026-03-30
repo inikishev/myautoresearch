@@ -1,0 +1,32 @@
+{
+    "file": "source.py",
+    "extra_files": [],
+    "object_name": "LazyEigh",
+    "name": "LazyEigh-10",
+    "description": "Computes eigendecomposition every 10 steps",
+    "baseline": true,
+    "feasible": true,
+    "feasibility": [],
+    "author": "GLM-5",
+    "args": [
+        "/var/mnt/issd/dev/miniconda3/envs/pytorch313/bin/python3",
+        "__evaluate__.py",
+        "--file",
+        "source.py",
+        "--object",
+        "LazyEigh"
+    ],
+    "start_dt": "2026-03-28 11-29-34",
+    "start_sec": 1774686491.112085,
+    "time_sec": 83.57833099365234,
+    "finished": true,
+    "config": {
+        "work_dir": "workdir",
+        "author": "GLM-5",
+        "max_time": null,
+        "timeout": 360,
+        "top_k": 10,
+        "n_neighbors": 2
+    },
+    "result": null
+}

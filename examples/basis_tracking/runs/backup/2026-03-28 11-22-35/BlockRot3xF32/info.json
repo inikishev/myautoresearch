@@ -1,0 +1,32 @@
+{
+    "file": "algorithm.py",
+    "extra_files": [],
+    "object_name": "BasisUpdater",
+    "name": "BlockRot3xF32",
+    "description": "Block size k*3, PI every 6/7. Explicit float32 and contiguous memory for optimization.",
+    "baseline": false,
+    "feasible": true,
+    "feasibility": [],
+    "author": "GLM-5",
+    "args": [
+        "/var/mnt/issd/dev/miniconda3/envs/pytorch313/bin/python3",
+        "__evaluate__.py",
+        "--file",
+        "algorithm.py",
+        "--object",
+        "BasisUpdater"
+    ],
+    "start_dt": "2026-03-27 17-33-36",
+    "start_sec": 1774622004.5133905,
+    "time_sec": 11.640882730484009,
+    "finished": true,
+    "config": {
+        "work_dir": "workdir",
+        "author": "GLM-5",
+        "max_time": null,
+        "timeout": 120,
+        "top_k": 10,
+        "n_neighbors": 2
+    },
+    "result": "Score 35.89 vs previous best 35.48 (PI-Freq6-7). Novel approach: block rotation with block_size = k*3 instead of k. Key insight: when U is m×k (k small), rotating a 3k block captures more eigenvector interactions from rank-k updates. Explored perturbation theory (EV too low), Oja's rule (orthogonality broken), Jacobi rotations (too slow with Python loops), momentum PI (lower EV), various block sizes (2x-5x tested, 3x optimal). The 3x block rotation achieves higher EV (0.9621 vs 0.9608) at similar time (0.0083ms)."
+}

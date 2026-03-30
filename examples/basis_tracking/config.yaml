@@ -1,0 +1,7 @@
+work_dir: workdir
+author: "GLM-5"
+max_time: null
+timeout: 360
+top_k: 10
+n_neighbors: 2
+copy_logger: false

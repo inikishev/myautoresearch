@@ -1,0 +1,34 @@
+{
+    "file": "chebyshev_fast.py",
+    "extra_files": [],
+    "object_name": "BasisUpdater",
+    "name": "ChebyshevFast",
+    "description": "Fast Chebyshev with preallocated buffers and inplace operations.",
+    "baseline": false,
+    "feasible": true,
+    "feasibility": [],
+    "author": "GLM-5",
+    "args": [
+        "/var/mnt/issd/dev/miniconda3/envs/pytorch313/bin/python3",
+        "__myautoresearch_evaluate__.py",
+        "--file",
+        "chebyshev_fast.py",
+        "--object",
+        "BasisUpdater",
+        "--root",
+        "/var/home/jj/research/basis_tracking"
+    ],
+    "start_dt": "2026-03-29 16-22-30",
+    "start_sec": 1774790461.1396377,
+    "time_sec": 89.60024309158325,
+    "finished": true,
+    "config": {
+        "work_dir": "workdir",
+        "author": "GLM-5",
+        "max_time": null,
+        "timeout": 360,
+        "top_k": 10,
+        "n_neighbors": 2
+    },
+    "result": "Developed novel Chebyshev polynomial-accelerated subspace iteration. Key innovations: 1) Uses Chebyshev T_2 polynomial (2*A^2 - I) instead of standard power iteration for faster convergence, 2) Preallocated buffers and inplace operations for speed, 3) Random orthogonal initialization. Explored many approaches: Givens rotations (too slow), Oja's rule (poor convergence), adaptive frequency (high EV but slow), momentum (decent), Chebyshev variants. Best result with coefficient=2.0, freq=3. Very close to state-of-the-art with a fundamentally different approach. Future work: better spectral estimation for Chebyshev scaling could improve EV further."
+}

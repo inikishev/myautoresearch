@@ -1,0 +1,145 @@
+{
+    "time per iter (2000x2000)": [
+        "time per iter (2000x2000)",
+        0.059409127655029294,
+        false,
+        false,
+        true,
+        true,
+        false,
+        false,
+        1
+    ],
+    "time per iter (10x2000)": [
+        "time per iter (10x2000)",
+        0.05302629234313965,
+        false,
+        false,
+        true,
+        true,
+        false,
+        false,
+        1
+    ],
+    "time per iter (2000x10)": [
+        "time per iter (2000x10)",
+        0.00026642432063817977,
+        false,
+        false,
+        true,
+        true,
+        false,
+        false,
+        1
+    ],
+    "mean time per iter": [
+        "mean time per iter",
+        0.037567281439602376,
+        false,
+        false,
+        true,
+        true,
+        true,
+        true,
+        1
+    ],
+    "orthogonality (2000x2000)": [
+        "orthogonality (2000x2000)",
+        5.405788022471825e-05,
+        false,
+        false,
+        true,
+        true,
+        false,
+        false,
+        1
+    ],
+    "orthogonality (10x2000)": [
+        "orthogonality (10x2000)",
+        5.4432361612271055e-05,
+        false,
+        false,
+        true,
+        true,
+        false,
+        false,
+        1
+    ],
+    "orthogonality (2000x10)": [
+        "orthogonality (2000x10)",
+        9.695428917666504e-07,
+        false,
+        false,
+        true,
+        true,
+        false,
+        false,
+        1
+    ],
+    "mean orthogonality": [
+        "mean orthogonality",
+        3.648659490958532e-05,
+        false,
+        false,
+        true,
+        true,
+        true,
+        true,
+        1
+    ],
+    "explained variance (2000x2000)": [
+        "explained variance (2000x2000)",
+        0.9923109993338585,
+        true,
+        false,
+        true,
+        true,
+        false,
+        false,
+        4
+    ],
+    "explained variance (10x2000)": [
+        "explained variance (10x2000)",
+        0.9935752946138382,
+        true,
+        false,
+        true,
+        true,
+        false,
+        false,
+        4
+    ],
+    "explained variance (2000x10)": [
+        "explained variance (2000x10)",
+        0.981242665052414,
+        true,
+        false,
+        true,
+        true,
+        false,
+        false,
+        4
+    ],
+    "mean explained variance": [
+        "mean explained variance",
+        0.9890429863333702,
+        true,
+        false,
+        true,
+        true,
+        true,
+        true,
+        1
+    ],
+    "score": [
+        "score",
+        18.16685101218995,
+        true,
+        true,
+        true,
+        true,
+        true,
+        true,
+        1
+    ]
+}
