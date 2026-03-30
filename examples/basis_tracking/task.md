@@ -26,7 +26,7 @@ Pass name of the class to the evaluation script, for example `--object BasisUpda
 
 ## Evaluation
 
-Evaluation runs the algorithm for 200 steps on U of various sizes ranging from 2000x2000 to 2000x1 and 10x2000. It computes orthogonality error as average $||B B^T - I||_F$ over all steps, and explained variance as average $||\frac{diag(B^T A B)||_F}{||B^T A B||_F}$ (fraction of total Frobenius norm pushed into the diagonal). The evaluation script keeps track of its own copy of A, so make sure you update A correctly. The evaluation script has a hard timeout of 360 seconds (for reference the eigendecomposition every step baseline takes 290 seconds).
+Evaluation runs the algorithm for 200 steps on U of various sizes ranging from 2000x2000 to 2000x1 and 10x2000. It computes orthogonality error as average $||B B^T - I||_F$ over all steps, and explained variance as average $\frac{||diag(B^T A B)||_F}{||B^T A B||_F}$ (fraction of total Frobenius norm pushed into the diagonal). The evaluation script keeps track of its own copy of A, so make sure you update A correctly. The evaluation script has a hard timeout of 360 seconds (for reference the eigendecomposition every step baseline takes 290 seconds).
 
 The submissions are scored using the following formula (higher is better):
 
