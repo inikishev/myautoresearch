@@ -83,15 +83,18 @@ def cli_submit(name: str, result: str | None):
         return commands.mar_submit(name=name, result=result)
 
 @mar.command("list")
-@click.argument('status', default='all', type=str)
-def cli_list(status: Literal["unsubmitted", "submitted", "discarded", "all"]):
+@click.argument('what', default='all', type=str)
+def cli_list(what: Literal["unsubmitted", "submitted", "discarded", "all", "modifiers"]):
     with no_stack_trace():
-        runs = commands.mar_list_names(status)
-        if len(runs) == 0:
-            click.echo(f"No runs with status={status}.")
+        if what == "modifiers":
+            click.echo(f"{list(prompts.MODIFIERS.keys())}")
         else:
-            inner = '", "'.join(runs)
-            click.echo(f'"{inner}"')
+            runs = commands.mar_list_names(what)
+            if len(runs) == 0:
+                click.echo(f"No runs with status={what}.")
+            else:
+                inner = '", "'.join(runs)
+                click.echo(f'"{inner}"')
 
 
 @mar.command("leaderboard")
@@ -159,3 +162,9 @@ def cli_reevaluate():
 def cli_rename(old: str, new: str):
     with no_stack_trace():
         commands.mar_rename(old=old, new=new)
+
+
+@mar.command("cleanup_processes")
+def cli_cleanup_processes():
+    with no_stack_trace():
+        _utils.cleanup_orphans()

@@ -3,7 +3,9 @@ import argparse
 import importlib.util
 import json
 import logging
+import math
 import os
+import shutil
 import signal
 import sys
 from collections import defaultdict
@@ -48,6 +50,7 @@ def import_object(argv: list[str]):
     parser.add_argument('-f', "--file", type=str)
     parser.add_argument('-o', "--object", type=str)
     parser.add_argument('-r', "--root", type=str)
+    parser.add_argument('-n', "--name", type=str)
     args = parser.parse_args(argv)
 
     # Create spec
@@ -233,7 +236,7 @@ def get_logger(file):
     return logger
 
 
-def cleanup_orphans(script_name: str = "__myautoresearch_evaluate__.py"):
+def cleanup_orphans(script_name: str = "__myautoresearch_evaluate__.py", warn=True):
     current_pid = os.getpid()
 
     for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
@@ -241,8 +244,13 @@ def cleanup_orphans(script_name: str = "__myautoresearch_evaluate__.py"):
             cmdline = proc.info.get('cmdline') or []
             if any(script_name in arg for arg in cmdline):
                 if proc.info['pid'] != current_pid:
-                    click.echo(
-                        f"WARNING: another evaluation script is already running (PID: {proc.info['pid']}) and will now be terminated. Don't run multiple evaluations in parallel as that would affect their recorded runtime, and increase/disable shell command tool timeout to avoid killing `mar evaluate`.")
+
+                    if warn:
+                        click.echo(
+                            f"WARNING: another evaluation script was already running (PID: {proc.info['pid']}) and has been terminated. This can happen if you run multiple evaluations in parallel which is not allowed as that would affect their recorded runtime, or if `mar evaluate` was force-killed by the shell command tool. If possible, increase or disable shell command tool timeout to prevent this from happening.")
+                    else:
+                        click.echo(f"Another evaluation script was already running (PID: {proc.info['pid']}) and has been terminated.")
+
                     proc.send_signal(signal.SIGTERM)
                     proc.wait(timeout=3)
 
@@ -251,3 +259,50 @@ def cleanup_orphans(script_name: str = "__myautoresearch_evaluate__.py"):
 
         except psutil.TimeoutExpired:
             proc.kill()
+
+
+def maybe_int(x):
+    if math.isfinite(x): return int(x)
+    return x
+
+def maybe_strip(s):
+    if isinstance(s, str): return s.strip()
+    return s
+
+def get_root_and_config() -> tuple[Path, dict]:
+    cwd = get_cwd()
+    root = cwd.parent
+
+    if not ((root / "config.yaml").exists() and (root / "task.md").exists() and (root / "runs").is_dir()):
+        raise RuntimeError(NoStackTraceException(f"All commands must be ran from working directory, but current directory is {cwd}."))
+
+    # Load config
+    with open(root / "config.yaml", encoding='utf-8') as f:
+        config: dict = yaml.safe_load(f)
+
+    # Check that work dir is correct
+    work_dir_name = config.get("work_dir", "workdir")
+    if os.path.normpath(cwd) != os.path.normpath(root / work_dir_name):
+        raise NoStackTraceException(f'All commands must be ran from working directory ({root / work_dir_name}), but current directory is {cwd}')
+
+    # Check if temp exists from a killed process
+    if (root / "temp").exists():
+
+        warn = True
+        for log_file in (root / "temp").iterdir():
+            if log_file.is_file():
+
+                # Display captured output from previous run if it exists
+                with open(log_file, "r", encoding='utf-8') as f:
+                    console = f.read()
+
+                    if len(console.strip()) > 0:
+                        click.echo(f"WARNING: The previous `mar evaluate` call with run `{log_file.name[:-4]}` got suddenly interrupted (likely due to shell command tool timeout), the following output was captured from it:\n")
+                        click.echo(console.strip())
+                        click.echo("\nIf possible, increase or remove shell command timeout to prevent this from happening.\n")
+                        warn = False
+
+        shutil.rmtree(root / "temp", ignore_errors=True)
+        cleanup_orphans(warn=warn)
+
+    return root, config

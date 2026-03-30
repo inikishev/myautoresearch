@@ -90,19 +90,19 @@ class Evaluator(ABC):
 def run(evaluator: Evaluator):
     root = Path(evaluator._args.root)
 
-    with open(root / 'eval.lock', 'w', encoding='utf-8') as f:
-        try:
-            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            _utils.cleanup_orphans()
+    try:
+        with open(root / 'eval.lock', 'w', encoding='utf-8') as f:
             try:
                 fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except BlockingIOError as e:
-                raise RuntimeError("Another evaluation script is already running and couldn't be terminated.") from e
+            except BlockingIOError:
+                _utils.cleanup_orphans()
+                try:
+                    fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                except BlockingIOError as e:
+                    raise RuntimeError("Another evaluation script is already running and couldn't be terminated.") from e
 
-        try:
             evaluator.evaluate()
             evaluator.save()
 
-        finally:
-            os.remove(root / 'eval.lock')
+    finally:
+        os.remove(root / 'eval.lock')

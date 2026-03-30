@@ -22,29 +22,6 @@ from .evaluate_template import EVALUATE_TEMPLATE
 from .logger import Logger
 
 
-def _toint(x):
-    if math.isfinite(x): return int(x)
-    return x
-
-def _maybe_strip(s):
-    if isinstance(s, str): return s.strip()
-    return s
-
-def _get_root_and_config() -> tuple[Path, dict]:
-    root = _utils.get_cwd().parent
-
-    # Load config
-    with open(root / "config.yaml", encoding='utf-8') as f:
-        config: dict = yaml.safe_load(f)
-
-    # Check that work dir is correct
-    work_dir_name = config.get("work_dir", "workdir")
-    if os.path.normpath(os.getcwd()) != os.path.normpath(root / work_dir_name):
-        raise _utils.NoStackTraceException(f'Working directory must be {root / work_dir_name}, but it is {os.getcwd()}')
-
-    return root, config
-
-
 DEFAULT_CONFIG = dict(
     work_dir = "workdir",
     author = None,
@@ -98,7 +75,6 @@ def mar_init(preset: str | None = None):
 
     # config
     if not(root / "config.yaml").exists():
-
         _utils.write_yaml(DEFAULT_CONFIG, root / "config.yaml")
 
 
@@ -108,7 +84,7 @@ def mar_init(preset: str | None = None):
 def mar_summary():
     """Returns sumbitted runs and their descriptions"""
 
-    root, config = _get_root_and_config()
+    root, config = _utils.get_root_and_config()
 
     # Load runs
     runs = [_utils.FinishedRun(r) for r in (root / "runs" / "submitted").iterdir()]
@@ -139,8 +115,8 @@ def mar_summary():
         name = run.info["name"]
         # dt = run.info["start_dt"]
         author = run.info["author"]
-        description = _maybe_strip(run.info["description"])
-        result: str | None = _maybe_strip(run.info["result"])
+        description = _utils.maybe_strip(run.info["description"])
+        result: str | None = _utils.maybe_strip(run.info["result"])
         feasible = run.info["feasible"]
         infeasibility_reasons = [d["reason"] for d in run.info["feasibility"] if d["feasible"] is False]
 
@@ -150,7 +126,7 @@ def mar_summary():
 
             mean_rank = mean_ranks[i]
             total_rank = total_ranks[i]
-            metrics_s = f'{metrics_s}\n- rank: {_toint(total_rank)}\n- weighted mean rank: {_utils.format_value(mean_rank)}'
+            metrics_s = f'{metrics_s}\n- rank: {_utils.maybe_int(total_rank)}\n- weighted mean rank: {_utils.format_value(mean_rank)}'
 
         for metric_name in sorted(display_metric_names):
             if metric_name in run.metrics:
@@ -159,7 +135,7 @@ def mar_summary():
                     metrics_s = f"{metrics_s}\n- {metric_name}: {_utils.format_value(metric.value)}"
                     if metric_name in ranks:
                         rank = ranks[metric_name][i]
-                        metrics_s = f'{metrics_s} (ranked {_toint(rank)}/{_toint(np.nanmax(ranks[metric_name]))})'
+                        metrics_s = f'{metrics_s} (ranked {_utils.maybe_int(rank)}/{_utils.maybe_int(np.nanmax(ranks[metric_name]))})'
 
         if run.info["baseline"]: author_s = " (baseline)"
         elif author is not None: author_s = f" (submitted by {author})"
@@ -178,7 +154,7 @@ def mar_summary():
 
 def mar_display_leaderboard(status: Literal["unsubmitted", "submitted", "discarded", "all"] = "all", current_run_dir=None):
     """Displays the leaderboard."""
-    root, config = _get_root_and_config()
+    root, config = _utils.get_root_and_config()
 
     runs = []
     if status in ("submitted", "all"):
@@ -225,7 +201,7 @@ def mar_display_leaderboard(status: Literal["unsubmitted", "submitted", "discard
         if mean_ranks is not None:
             mean_rank = mean_ranks[-1]
             total_rank = total_ranks[-1]
-            click.echo(f'- rank: {_toint(total_rank)}/{_toint(np.nanmax(total_ranks))}')
+            click.echo(f'- rank: {_utils.maybe_int(total_rank)}/{_utils.maybe_int(np.nanmax(total_ranks))}')
             click.echo(f'- weighted mean rank: {_utils.format_value(mean_rank)}')
 
         for metric in current_run.metrics.values():
@@ -233,7 +209,7 @@ def mar_display_leaderboard(status: Literal["unsubmitted", "submitted", "discard
                 s = f"- {metric.name}: {_utils.format_value(metric.value)}"
                 if (metric.display_rank) and (metric.name in ranks):
                     best_by_metric = runs[np.nanargmin(ranks[metric.name])].info["name"]
-                    s = f"{s} (ranked {_toint(ranks[metric.name][-1])}/{_toint(np.nanmax(ranks[metric.name]))}, best run: {best_by_metric})"
+                    s = f"{s} (ranked {_utils.maybe_int(ranks[metric.name][-1])}/{_utils.maybe_int(np.nanmax(ranks[metric.name]))}, best run: {best_by_metric})"
                 click.echo(s)
 
         click.echo() # newline before leaderboard
@@ -251,7 +227,7 @@ def mar_display_leaderboard(status: Literal["unsubmitted", "submitted", "discard
         if run.status in ("unsubmitted", "current"):
             name = f'{name} (unsubmitted)'
 
-        s = f"{_toint(rank)}. {name}: "
+        s = f"{_utils.maybe_int(rank)}. {name}: "
         for metric in run.metrics.values():
             if metric.display_leaderboard:
                 s = f"{s}{metric.name}={_utils.format_value(metric.value)}, "
@@ -300,13 +276,13 @@ def mar_display_leaderboard(status: Literal["unsubmitted", "submitted", "discard
 
 def mar_prompt(modifier: prompts.ModifierLiteral | None = None):
     """Prompt for the AI agent."""
-    root, config = _get_root_and_config()
+    root, config = _utils.get_root_and_config()
 
     task = _utils.read_text(root / "task.md").strip()
 
-    s = f"{task}\n\n\n{prompts.MAR_INSTRUCTION}\n\n\n# Runs\n\n{mar_summary()}\n\n{prompts.AFTER_SUMMARY_RUNS}"
+    s = f"{task}\n\n\n{prompts.MAR_INSTRUCTION.strip()}\n\n\n# Runs\n\n{mar_summary()}\n\n{prompts.AFTER_SUMMARY_RUNS}"
     if modifier is not None:
-        s = f"{s}\n\n{prompts.MODIFIER_INSTRUCTION.format(modifier_name=modifier, modifier=prompts.MODIFIERS[modifier])}"
+        s = f"{s}\n\n{prompts.MODIFIER_INSTRUCTION.format(modifier_name=modifier, modifier=prompts.MODIFIERS[modifier]).strip()}"
 
     return s
 
@@ -333,7 +309,7 @@ def _initialize_session(root: Path, config: dict):
 
 def mar_start():
     """Start a new session. Clears current session files and moves unsubmitted runs to discarded."""
-    root, config = _get_root_and_config()
+    root, config = _utils.get_root_and_config()
 
     # clear files from previous session
     work_dir_name: str = config.get("work_dir", "workdir")
@@ -365,7 +341,7 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
         if len(description) == 0:
             raise _utils.NoStackTraceException("Passed empty string to --description.")
 
-    root, config = _get_root_and_config()
+    root, config = _utils.get_root_and_config()
     name = _utils.make_valid_filename(name)
 
     # Check that `name` is unique
@@ -392,6 +368,17 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
         elif os.path.isdir(extra): shutil.copytree(root / work_dir_name / extra, eval_dir / extra)
         else: raise _utils.NoStackTraceException(f"Path passed to `--extra_files` doesn't exist: {extra}")
 
+
+    # Create a temporary directory for console log, that way it is preserved when evaluator is killed
+    (root / "temp").mkdir(exist_ok=True)
+    console_log_file = root / "temp" / f"{name}.log"
+
+    def echo_console():
+        if console_log_file.exists():
+            with open(console_log_file, "r", encoding='utf-8') as f:
+                console = f.read()
+                if len(console.strip()) > 0: click.echo(console)
+
     # Run
     timeout = config.get("timeout", None)
     if timeout is not None and timeout <= 0: timeout = None
@@ -401,7 +388,8 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
     timed_out = False
     should_delete = False
 
-    with open(eval_dir / "console.log", "a", encoding='utf-8') as console_log:
+    with open(console_log_file, "a", encoding='utf-8') as console_log:
+
         try:
 
             current_items = set(os.listdir(eval_dir))
@@ -411,7 +399,8 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
                     "__myautoresearch_evaluate__.py",
                     "--file", file,
                     "--object", f'{object}',
-                    "--root", f"{root}"
+                    "--root", f"{root}",
+                    "--name", str(name),
                 ],
                 cwd = eval_dir,
                 check = True,
@@ -424,23 +413,30 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
 
             # copy over files that script has saved back to workdir
             for item in new_items:
-                if (not item.startswith(".")) and (item not in "debug.log"):
-                    if os.path.isfile(item): shutil.copy2(eval_dir / item, root / work_dir_name / item)
-                    elif os.path.isdir(item): shutil.copytree(eval_dir / item, root / work_dir_name / item)
+                if not ((item.startswith((".", "__"))) or item in ("debug.log", )):
+                    tgt_path = (root / work_dir_name / item)
+                    try:
+                        if tgt_path.exists():
+                            if os.path.isfile(item): tgt_path.unlink()
+                            else: shutil.rmtree(tgt_path)
+                        if os.path.isfile(item): shutil.copy2(eval_dir / item, tgt_path)
+                        elif os.path.isdir(item): shutil.copytree(eval_dir / item, tgt_path)
+                    except Exception as e:
+                        warnings.warn(f"Failed to copy {eval_dir / item} to {tgt_path}:\n{e}")
 
-            with open(eval_dir / "console.log", "r", encoding='utf-8') as f: click.echo(f.read())
+            echo_console()
             finished = True
 
         except subprocess.TimeoutExpired:
             timed_out = True
             should_delete = True
-            with open(eval_dir / "console.log", "r", encoding='utf-8') as f: click.echo(f.read())
+            echo_console()
             click.echo(f"ERROR: script runtime exceeded the timeout of {timeout} sec, "
                         "process has been terminated early.")
 
         except subprocess.CalledProcessError as e:
             should_delete = True
-            with open(eval_dir / "console.log", "r", encoding='utf-8') as f: click.echo(f.read())
+            echo_console()
             click.echo(f"ERROR: script raised an exception:\n{e}\n")
             if e.returncode == -signal.SIGTERM:
                 click.echo("Run was terminated by a SIGTERM likely because another run has started.")
@@ -449,18 +445,29 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
 
         except Exception as e:
             should_delete = True
-            with open(eval_dir / "console.log", "r", encoding='utf-8') as f: click.echo(f.read())
+            echo_console()
             click.echo(f"ERROR: execution failed with the following exception:\n{e}\n")
-
-        finally:
-            if not eval_dir.exists():
-                raise _utils.NoStackTraceException(f"ERROR: The evaluation directory {eval_dir} has been deleted. This may happen if you run two evaluations with the same name in parallel.")
 
     time_sec = time.time() - start_sec
     click.echo(f"Run finished in {time_sec:.2f} seconds.")
 
+    # copy console log over to eval dir and remove temporary directory
+    if console_log_file.exists():
+        tgt_file = eval_dir / "console.log"
+        if tgt_file.exists(): tgt_file.unlink()
+        shutil.copy2(console_log_file, tgt_file)
+
+    shutil.rmtree(root / "temp", ignore_errors=True)
+
+    # Check that eval dir exists
+    if not eval_dir.exists():
+        raise _utils.NoStackTraceException(f"The evaluation directory {eval_dir} has been deleted. This may happen if you run two evaluations with the same name in parallel. Don't run multiple evaluations in parallel.")
+
+
     if config.get("copy_logger", False):
         if (eval_dir / "logger.npz").exists():
+
+            # Copy logger to workdir
             try:
                 loggers_dir = root / work_dir_name / "loggers"
                 if not loggers_dir.exists(): loggers_dir.mkdir()
@@ -547,7 +554,7 @@ def mar_list_names(status: Literal["unsubmitted", "submitted", "discarded", "all
         # no discarded here, they are only stored for reference
         return mar_list_names("unsubmitted") + mar_list_names("submitted")
 
-    root, config = _get_root_and_config()
+    root, config = _utils.get_root_and_config()
     evals_dir = root / "runs" / status
 
     all_names = []
@@ -561,7 +568,7 @@ def mar_list_names(status: Literal["unsubmitted", "submitted", "discarded", "all
 def mar_submit(name: str, result: str | None):
     """Moves specified run from ``unsubmitted`` to ``submitted``, adding ``result`` to ``info.json``.
     This run will now appear in run lists and visualizations."""
-    root, config = _get_root_and_config()
+    root, config = _utils.get_root_and_config()
     name = _utils.make_valid_filename(name)
 
     evals_dir = root / "runs" / "unsubmitted"
@@ -598,8 +605,8 @@ def mar_submit(name: str, result: str | None):
 
 
 def mar_discard(*names: str):
-    """Discards specified submitted runs"""
-    root, config = _get_root_and_config()
+    """Discards specified runs"""
+    root, config = _utils.get_root_and_config()
     dt = datetime.fromtimestamp(time.time_ns() / 1e9).strftime('%Y-%m-%d %H-%M-%S')
     discarded_dir = root / "runs" / "discarded" / dt
     discarded_dir.mkdir(exist_ok=True)
@@ -613,7 +620,7 @@ def mar_discard(*names: str):
 
 def mar_load(name: str):
     """Loads specified run source to workdir, this is meant to be used by AI to give it a way to access existing runs."""
-    root, config = _get_root_and_config()
+    root, config = _utils.get_root_and_config()
     name = _utils.make_valid_filename(name)
 
     # need to find name in either submitted or unsubmitted
@@ -648,7 +655,7 @@ def mar_config(work_dir, author, max_time, timeout, top_k, n_neighbors, copy_log
     """Modify config file through terminal e.g. ``mar config --author=Qwen3.5``"""
     kwargs = locals().copy()
 
-    root, config = _get_root_and_config()
+    root, config = _utils.get_root_and_config()
 
     for k,v in kwargs.items():
         if k in DEFAULT_CONFIG:
@@ -690,7 +697,7 @@ def _sort_key(dir: Path):
 
 def mar_reevaluate():
     """Reevaluates all submitted runs. You can use this if you've updated the evaluation script. Note that unsubmitted and discarded runs will be deleted."""
-    root, config = _get_root_and_config()
+    root, config = _utils.get_root_and_config()
 
     work_dir_name = config.get("work_dir", "workdir")
     work_dir = root / work_dir_name
@@ -773,7 +780,7 @@ def mar_reevaluate():
 
 def mar_rename(old: str, new: str):
     """Renames a run."""
-    root, config = _get_root_and_config()
+    root, config = _utils.get_root_and_config()
     old = _utils.make_valid_filename(old)
     new = _utils.make_valid_filename(new)
 

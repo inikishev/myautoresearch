@@ -71,9 +71,9 @@ top_k: 10 # default: 10
 # along with this many neighboring runs by rank
 n_neighbors: 2 # default: 2
 
-# if True, logger with per-step metrics will be copied to working directory
-# and a short instruction will be displayed on how to inspect it after each evaluation.
-copy_logger: true # default: false
+# if True, if any per-step metrics are logged, the logs will be copied to working directory
+# and a short instruction will be displayed on how to inspect them after each evaluation.
+copy_logger: false # default: false
 ```
 
 ### 3. Define evaluation script
@@ -85,6 +85,7 @@ First, decide on what the agent should submit as the solution. Usually it's goin
 Then you can define the `run` method on the evaluator, where the object submitted by the AI agent will be in the `object` attribute:
 
 ```python
+from click import echo # use instead of print
 from myautoresearch import Evaluator, run
 
 class MyEvaluator(Evaluator):
@@ -109,7 +110,7 @@ class MyEvaluator(Evaluator):
         if violates_constraints:
             self.set_infeasible("Constraint violation reason")
 
-if __name__ == "__main__":
+if __name__ == "__main__": # don't modify this part
     run(MyEvaluator())
 ```
 
@@ -202,10 +203,10 @@ Put the name of the modifier after `mar start` in the prompt, for example `mar s
 ### Additional Commands
 
 - `mar reevaluate`: Rerun all submitted runs with the current evaluation script. Use after modifying `scripts/evaluate.py`.
-- `mar load <name>`: Load the source code of a previous run into the working directory.
+- `mar load <name>`: Allows agent to load the source code of a previous run into the working directory.
 - `mar list <status>`: List run names by status (`unsubmitted`, `submitted`, `discarded`, or `all`).
 - `mar leaderboard <status>`: Display the leaderboard for runs with specified status.
-- `mar discard <name>`: Move a submitted run to discarded.
+- `mar discard <name>`: Move a run to discarded.
 - `mar rename <old> <new>`: Rename a run.
 - `mar summary`: Show summaries of submitted runs with their descriptions.
 - `mar config --<option> <value>`: Update configuration options from CLI.
