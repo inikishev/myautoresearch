@@ -22,7 +22,7 @@ After running the command, the results of evaluation will be displayed in the te
 Finally, submit one run using `mar submit` shell command. Sumbit the run that will be the most useful for future sessions. This can be your best attempt, or the most promising approach you've tried. If all your runs failed, you should still submit your best attempt to document what doesn't work. Pass the following flags:
 
 --name TEXT: the same name as you passed to `mar evaluate`. You can list all names via `mar list unsubmitted`.
---result TEXT: describe results of your experiments - what did you try, what worked, what didn't work, did your best attempt beat current leader, can it be improved. This will be shown in previously submitted runs summary next to the description. The summary already shows all metric values, don't duplicate them here.
+--result TEXT: describe results of your experiments - what did you try, what worked, what didn't work, did your best attempt beat current leader, can it be improved. Include any new information that will help future sessions. The summary already shows all metric values, don't duplicate them here.
 
 Only submit one run per session. If you've changed your mind and want to submit a different run, use `mar discard <name>` to discard the previously submitted one.
 """
