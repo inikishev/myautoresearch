@@ -1,5 +1,7 @@
 """CLI interface"""
+from pathlib import Path
 import os
+import shutil
 from typing import Literal
 
 import click
@@ -178,3 +180,11 @@ def cli_cleanup_processes():
     """Terminates all currently running evaluation scripts."""
     with _utils.no_stack_trace():
         _utils.cleanup_orphans()
+
+
+@mar.command("load-template")
+@click.argument('template', type=str)
+def cli_load_template(template: str):
+    cwd = _utils.get_cwd()
+    shutil.copy2(os.path.normpath(Path(__file__).parent / "templates" / template / "template.yaml"), cwd / "template.yaml")
+    click.echo(f"Template has been copied to '{cwd / 'template.yaml'}'")

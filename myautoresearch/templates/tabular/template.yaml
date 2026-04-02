@@ -1,0 +1,37 @@
+# yaml-language-server: $schema=none
+# copy train.csv next to this file
+# do not delete this file after initializing
+template: tabular
+
+# name of the dataset (e.g. MNIST, Predicting Heart Disease). If not specified, uses "this dataset".
+dataset_name: null
+
+# name of target column. If not specified, last column is the target column
+target_column: null
+
+# binary / multiclass / regression
+problem_type: null
+
+# should be specified if problem type is multiclass
+n_classes: null
+
+# column or list of columns to drop like "id"
+drop_cols: null
+
+# name of the evaluation metric like ROC AUC (only for task.md)
+metric: null
+
+# response method that must be defined on the evaluator (predict / predict_proba)
+response_method: null
+
+# shape of response method output, e.g. "(n_samples, n_classes)". Will be inferred automatically if not set
+output_shape: null
+
+# types of features that the dataset contains, e.g. numeric, categorical, text
+feature_types: null
+
+# timeout for full cross validation in seconds
+timeout: 600
+
+# number of splits
+n_splits: 5

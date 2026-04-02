@@ -11,6 +11,7 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 from typing import Literal
+from ruamel.yaml import YAML
 
 import click
 import numpy as np
@@ -38,13 +39,22 @@ def write_json(obj, file: str | os.PathLike):
     with open(file, "w", encoding='utf-8') as f:
         json.dump(obj, f, sort_keys=False, indent=4, ensure_ascii=False)
 
+def _get_yaml_reader():
+    """preserves comments"""
+    reader = YAML()
+    reader.preserve_quotes = True  # keeps existing quote styles
+    reader.indent(mapping=2, sequence=4, offset=2) # sets consistent indents
+    return reader
+
 def read_yaml(file: str | os.PathLike):
+    reader = _get_yaml_reader()
     with open(file, "r", encoding='utf-8') as f:
-        return yaml.safe_load(f)
+        return reader.load(f)
 
 def write_yaml(obj, file: str | os.PathLike):
+    reader = _get_yaml_reader()
     with open(file, "w", encoding='utf-8') as f:
-        yaml.safe_dump(obj, f, sort_keys=False, indent=4)
+        reader.dump(obj, f)
 
 def import_object(argv: list[str]):
 
@@ -319,3 +329,10 @@ def get_root_and_config() -> tuple[Path, dict]:
         cleanup_orphans(warn=warn)
 
     return root, config
+
+def copy_contents(src: str | os.PathLike, dst: str | os.PathLike):
+    src = Path(src)
+    dst = Path(dst)
+    for item in os.listdir(src):
+        if os.path.isfile(src / item): shutil.copy2(src / item, dst / item)
+        elif os.path.isdir(src / item): shutil.copytree(src / item, dst / item)

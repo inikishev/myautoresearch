@@ -14,7 +14,7 @@ from typing import Literal
 import click
 import numpy as np
 
-from . import _utils, strings
+from . import _utils, strings, templates
 from .logger import Logger
 
 DEFAULT_CONFIG = dict(
@@ -31,9 +31,11 @@ INT_CONFIG_KEYS = ("top_k", "n_neighbors")
 BOOL_CONFIG_KEYS = ("copy_logger", )
 
 def mar_init():
-    """Initializes a new project."""
+    """Initializes a new project. Doesn't overwrite any existing files."""
 
     root = _utils.get_cwd()
+    if (root / "template.yaml").exists():
+        templates.init_from_template(root)
 
     # workdir
     (root / "workdir").mkdir(exist_ok=True)

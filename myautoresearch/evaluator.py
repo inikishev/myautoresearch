@@ -28,8 +28,9 @@ class Evaluator(ABC):
     def evaluate(self) -> None:
         """Evaluates ``self.object`` and logs the metrics. Use ``click.echo`` to display any additional information useful to the AI agent."""
 
-    def log_step(self, step: int, metric: str, value: Any):
-        """Log an intermediate numeric metric, like train loss. If any are logged, the logger will be saved
+    def log_step(self, step: int, metric: str, value: Any) -> None:
+        """Log an intermediate numeric metric, like train loss. If any are logged, and
+        ``copy_logger`` configuration optin is enabled, the logger will be saved
         to working directory, and a short instruction for the agent will be displayed
         after evaluating a run on how to inspect it."""
         self.history.log(step, metric, value)
@@ -44,8 +45,8 @@ class Evaluator(ABC):
         display_rank: bool = True,
         display_leaderboard: bool = True,
         display_summary: bool = True,
-        weight: float = 1,
-    ):
+        weight: float = 1.0,
+    ) -> None:
         """Log a final metric. At least one main metric must be logged so that solutions can be compared.
 
         Args:
@@ -63,7 +64,7 @@ class Evaluator(ABC):
             display_leaderboard: Show this metric for all other runs in the leaderboard after a run is evaluated.
                 Keep the number of metrics in the leaderboard under 4 to make it more readable. Defaults to True.
             display_summary: Show this metric for all submited runs in the summary shown when agent runs `mar start`.
-                Keep the number of metrics in the summary under 10 to avoid filling the context with large number of submissions.
+                Keep the number of metrics in the summary under 10 to avoid filling the context when number of submissions is large.
             weight: This metric's weight for computing average rank from main metrics. Defaults to 1.0.
         """
         self._metrics[metric] = _utils.Metric(
@@ -78,8 +79,8 @@ class Evaluator(ABC):
             weight = weight,
         )
 
-    def set_infeasible(self, reason: str):
-        """Mark this run as infeasible and specify a reason that AI agent will see."""
+    def set_infeasible(self, reason: str) -> None:
+        """Mark this run as infeasible and specify a reason that the AI agent will see."""
         self._feasibility.append({"feasible": False, "reason": reason})
 
     def _save(self):

@@ -119,7 +119,8 @@ The evaluator has three main methods useful inside `run`:
 ```python
 class Evaluator:
     def log_step(self, step: int, metric: str, value: Any) -> None:
-        """Log an intermediate numeric metric, like train loss. If any are logged, the logger will be saved
+        """Log an intermediate numeric metric, like train loss. If any are logged, and
+        ``copy_logger`` configuration optin is enabled, the logger will be saved
         to working directory, and a short instruction for the agent will be displayed
         after evaluating a run on how to inspect it."""
 
@@ -157,7 +158,7 @@ class Evaluator:
         """
 
     def set_infeasible(self, reason: str) -> None:
-        """Mark this run as infeasible and specify a reason that AI will see."""
+        """Mark this run as infeasible and specify a reason that the AI agent will see."""
 ```
 
 If you need any extra files for the evaluation, put them in the `templates/eval` directory. They will be copied next to the evaluation script when evaluating.

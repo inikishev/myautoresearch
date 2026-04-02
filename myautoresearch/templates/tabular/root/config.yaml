@@ -1,0 +1,7 @@
+work_dir: workdir
+author: null
+max_time: {timeout}
+timeout: {timeout}
+top_k: 10
+n_neighbors: 2
+copy_logger: false
