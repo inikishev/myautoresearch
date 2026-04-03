@@ -92,6 +92,9 @@ class Evaluator(ABC):
 def run(evaluator: Evaluator):
     root = Path(evaluator._args.root)
 
+    if (root / "eval.lock").exists():
+        _utils.cleanup_orphans()
+
     try:
         with open(root / 'eval.lock', 'w', encoding='utf-8') as f:
             # Create a lock, and make sure no existing evaluation scripts are running

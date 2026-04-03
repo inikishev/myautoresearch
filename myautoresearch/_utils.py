@@ -308,25 +308,10 @@ def get_root_and_config() -> tuple[Path, dict]:
     if os.path.normpath(cwd) != os.path.normpath(root / work_dir_name):
         raise NoStackTraceException(f'All commands must be ran from working directory ({root / work_dir_name}), but current directory is {cwd}')
 
-    # Check if temp exists from a killed process
-    if (root / "temp").exists():
-
-        warn = True
-        for log_file in (root / "temp").iterdir():
-            if log_file.is_file():
-
-                # Display captured output from previous run if it exists
-                with open(log_file, "r", encoding='utf-8') as f:
-                    console = f.read()
-
-                    if len(console.strip()) > 0:
-                        click.echo(f"WARNING: The previous `mar evaluate` call with run `{log_file.name[:-4]}` got suddenly interrupted (likely due to shell command tool timeout), the following output was captured from it:\n")
-                        click.echo(console.strip())
-                        click.echo("\nIf possible, increase or remove shell command timeout to prevent this from happening.\n")
-                        warn = False
-
-        shutil.rmtree(root / "temp", ignore_errors=True)
-        cleanup_orphans(warn=warn)
+    # Check if eval.lock exists from a terminated bash command
+    if (root / "eval.lock").exists():
+        cleanup_orphans(warn=True)
+        (root / "eval.lock").unlink()
 
     return root, config
 

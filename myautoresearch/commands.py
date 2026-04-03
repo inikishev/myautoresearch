@@ -362,17 +362,7 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
         else: raise _utils.NoStackTraceException(f"Path passed to `--extra_files` doesn't exist: {extra}")
 
 
-    # Create a temporary directory for console log, that way it is preserved when evaluator is killed
-    (root / "temp").mkdir(exist_ok=True)
-    console_log_file = root / "temp" / f"{name}.log"
-
-    def echo_console():
-        if console_log_file.exists():
-            with open(console_log_file, "r", encoding='utf-8') as f:
-                console = f.read()
-                if len(console.strip()) > 0: click.echo(console)
-
-    # Run
+    # ------------------------------------ Run ----------------------------------- #
     timeout = config.get("timeout", None)
     if timeout is not None and timeout <= 0: timeout = None
     start_sec = time.time()
@@ -381,52 +371,44 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
     timed_out = False
     should_delete = False
 
-    with open(console_log_file, "a", encoding='utf-8') as console_log:
+    current_items = set(os.listdir(eval_dir))
 
-        current_items = set(os.listdir(eval_dir))
+    try:
 
-        try:
+        result = subprocess.run(
+            [
+                sys.executable,
+                "__myautoresearch_evaluate__.py",
+                "--file", file,
+                "--object", f'{object}',
+                "--root", f"{root}",
+                "--name", str(name),
+            ],
+            cwd = eval_dir,
+            check = True,
+            text = True,
+            timeout = timeout,
+        )
 
-            result = subprocess.run(
-                [
-                    sys.executable,
-                    "__myautoresearch_evaluate__.py",
-                    "--file", file,
-                    "--object", f'{object}',
-                    "--root", f"{root}",
-                    "--name", str(name),
-                ],
-                cwd = eval_dir,
-                check = True,
-                text = True,
-                stdout = console_log,
-                stderr = subprocess.STDOUT,
-                timeout = timeout,
-            )
+        finished = True
 
-            echo_console()
-            finished = True
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        should_delete = True
+        click.echo(f"ERROR: script runtime exceeded the timeout of {timeout} sec, "
+                    "process has been terminated early.")
 
-        except subprocess.TimeoutExpired:
-            timed_out = True
-            should_delete = True
-            echo_console()
-            click.echo(f"ERROR: script runtime exceeded the timeout of {timeout} sec, "
-                        "process has been terminated early.")
+    except subprocess.CalledProcessError as e:
+        should_delete = True
+        click.echo(f"ERROR: script raised an exception:\n{e}\n")
+        if e.returncode == -signal.SIGTERM:
+            click.echo("Run was terminated by a SIGTERM likely because another run has started.")
+        elif e.returncode == -signal.SIGKILL:
+            click.echo("Run was force-killed (SIGKILL) likely because another run has started.")
 
-        except subprocess.CalledProcessError as e:
-            should_delete = True
-            echo_console()
-            click.echo(f"ERROR: script raised an exception:\n{e}\n")
-            if e.returncode == -signal.SIGTERM:
-                click.echo("Run was terminated by a SIGTERM likely because another run has started.")
-            elif e.returncode == -signal.SIGKILL:
-                click.echo("Run was force-killed (SIGKILL) likely because another run has started.")
-
-        except Exception as e:
-            should_delete = True
-            echo_console()
-            click.echo(f"ERROR: execution failed with the following exception:\n{e}\n")
+    except Exception as e:
+        should_delete = True
+        click.echo(f"ERROR: execution failed with the following exception:\n{e}\n")
 
     time_sec = time.time() - start_sec
     click.echo(f"Run finished in {time_sec:.2f} seconds.")
@@ -440,7 +422,7 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
     for item in new_items:
 
         # Skip system files like __pycache__
-        if not ((item.startswith((".", "__"))) or item in ("debug.log", "logger.npz")):
+        if not (item.startswith((".", "__")) or item in ("debug.log", "logger.npz")):
 
             tgt_path = (root / work_dir_name / item)
 
@@ -453,15 +435,7 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
                 elif os.path.isdir(item): shutil.copytree(eval_dir / item, tgt_path)
 
             except Exception as e:
-                warnings.warn(f"Failed to copy {eval_dir / item} to {tgt_path}:\n{e}")
-
-    # copy console log from temp to eval dir and remove temporary directory
-    if console_log_file.exists():
-        tgt_file = eval_dir / "console.log"
-        if tgt_file.exists(): tgt_file.unlink()
-        shutil.copy2(console_log_file, tgt_file)
-
-    shutil.rmtree(root / "temp", ignore_errors=True)
+                warnings.warn(f"WARNING: Failed to copy {eval_dir / item} to {tgt_path}:\n{e}")
 
 
     # Copy logger to workdir and display short instruction if enabled in config
@@ -486,7 +460,7 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
         shutil.rmtree(eval_dir)
         return
 
-    # Check if run is feasible and collect unfeasibility reasons
+    # Check if run is feasible and collect infeasibility reasons
     max_time = config.get("max_time", None)
     if max_time is not None and max_time <= 0: max_time = None
     feasibility = []
