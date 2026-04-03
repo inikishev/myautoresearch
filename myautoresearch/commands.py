@@ -322,10 +322,9 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
     Evaluates a submission.
     1. Creates a new dir in ``runs/unsubmitted`` folder.
     2. Copies ``file`` to ``run/file``, ``evaluate.py`` to ``run/__myautoresearch_evaluate__.py``, and ``extra_files``.
-    3. Runs the experiment in the run folder, capturing outputs to ``console.log``.
-    4. Outputs console.log to console.
-    5. Saves ``info.json`` and other files.
-    6. Outputs leaderboard and other useful information for agent to iterate on.
+    3. Runs the experiment in the run folder.
+    4. Saves ``info.json`` and other files.
+    5. Outputs leaderboard and other useful information for agent to iterate on.
     """
     if len(name) == 0:
         raise _utils.NoStackTraceException("Passed empty string to --name.")

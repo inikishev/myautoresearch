@@ -255,7 +255,7 @@ def get_file_logger(file):
     return logger
 
 
-def cleanup_orphans(script_name: str = "__myautoresearch_evaluate__.py", warn=True):
+def cleanup_orphans(script_name: str = "__myautoresearch_evaluate__.py"):
     """Cleans up unterminated evaluation scripts. Some cli tools like iflow don't terminate them correctly,
     and that causes them to use resources in the background and results in incorrect timings in benchmarks."""
     current_pid = os.getpid()
@@ -266,11 +266,7 @@ def cleanup_orphans(script_name: str = "__myautoresearch_evaluate__.py", warn=Tr
             if any(script_name in arg for arg in cmdline):
                 if proc.info['pid'] != current_pid:
 
-                    if warn:
-                        click.echo(
-                            f"WARNING: another evaluation script was already running (PID: {proc.info['pid']}) and has been terminated. This can happen if you run multiple evaluations in parallel which is not allowed as that would affect their recorded runtime, or if `mar evaluate` was force-killed by the shell command tool. If possible, increase or disable shell command tool timeout to prevent this from happening.")
-                    else:
-                        click.echo(f"Another evaluation script was already running (PID: {proc.info['pid']}) and has been terminated.")
+                    click.echo(f"Another evaluation script was already running (PID: {proc.info['pid']}) and has been terminated.")
 
                     proc.send_signal(signal.SIGTERM)
                     proc.wait(timeout=3)
@@ -310,7 +306,7 @@ def get_root_and_config() -> tuple[Path, dict]:
 
     # Check if eval.lock exists from a terminated bash command
     if (root / "eval.lock").exists():
-        cleanup_orphans(warn=True)
+        cleanup_orphans()
         (root / "eval.lock").unlink()
 
     return root, config

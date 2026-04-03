@@ -2,13 +2,18 @@ import copy
 import os
 import time
 from functools import partial
+from pathlib import Path
 
+import myautoml as ma
 import numpy as np
 import pandas as pd
 import yaml
 from click import echo
 from myautoresearch import Evaluator, NoStackTraceException, run
 from sklearn.exceptions import NotFittedError
+from sklearn.linear_model import LassoCV, RidgeCV, LogisticRegression
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis, QuadraticDiscriminantAnalysis
+from sklearn.covariance import LedoitWolf
 from sklearn.metrics import balanced_accuracy_score
 from sklearn.model_selection import KFold, StratifiedKFold
 from sklearn.utils.validation import check_is_fitted
@@ -34,6 +39,15 @@ DROP_COLS = TEMPLATE["drop_cols"]
 if DROP_COLS is None: DROP_COLS = []
 if isinstance(DROP_COLS, str): DROP_COLS = [DROP_COLS, ]
 
+
+RUNS = Path("../../submitted")
+OOFS_LIST = []
+for run_dir in RUNS.iterdir():
+    oof = np.load(run_dir / "oofs.npz")["data"]
+    if oof.ndim == 1: oof = np.expand_dims(oof, -1)
+    OOFS_LIST.append(oof)
+
+
 def is_fitted(estimator):
     try:
         check_is_fitted(estimator)
@@ -53,13 +67,16 @@ class EstimatorEvaluator(Evaluator):
         y = df[TARGET_COLUMN]
 
         # CV with fixed seed
-        if PROBLEM_TYPE in ("binary", "multiclass", "classification"):
+        is_classification = PROBLEM_TYPE in ("binary", "multiclass", "classification")
+        if is_classification:
             kfold = StratifiedKFold(n_splits=N_SPLITS, shuffle=True, random_state=RANDOM_SEED)
         else:
             kfold = KFold(n_splits=N_SPLITS, shuffle=True, random_state=RANDOM_SEED)
 
         train_metrics = []
         test_metrics = []
+
+        oof = None
 
         for fold, (train_idx, test_idx) in enumerate(kfold.split(X, y)):
             start = time.time()
@@ -92,6 +109,13 @@ class EstimatorEvaluator(Evaluator):
             train_metrics.append(train_metric)
             test_metrics.append(test_metric)
 
+            if oof is None:
+                shape = y_test_resp.shape
+                shape[0] = len(y)
+                oof = np.zeros(shape)
+
+            oof[test_idx] = np.asarray(y_test)
+
         avg_train = np.mean(train_metrics)
         avg_test = np.mean(test_metrics)
 
@@ -117,6 +141,35 @@ class EstimatorEvaluator(Evaluator):
             display_leaderboard=True,
             display_summary=True,
         )
+
+        # Fit linear model on oofs
+        assert oof is not None
+        if oof.ndim == 1: oof = np.expand_dims(oof, -1)
+        all_oofs = np.concatenate(OOFS_LIST + [oof], 1)
+
+        if is_classification:
+            estimators = dict(
+                LogReg = LogisticRegression(),
+                RidgeCV = ma.RegressorAsClassifier(RidgeCV()),
+                LassoCV = ma.RegressorAsClassifier(LassoCV()),
+                LDA_LW = LinearDiscriminantAnalysis(covariance_estimator=LedoitWolf()),
+                QDA_05 = QuadraticDiscriminantAnalysis(reg_param=0.5),
+            )
+        else:
+            estimators = dict(
+                RidgeCV = RidgeCV(),
+                LassoCV = LassoCV(),
+            )
+
+        for name, estimator in estimators.items():
+            for fold, (train_idx, test_idx) in enumerate(kfold.split(all_oofs, y)):
+                start = time.time()
+                X_train, X_test = all_oofs[train_idx], all_oofs[test_idx]
+                y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
+
+                # Fit the estimator
+                estimator.fit(X_train, y_train)
+
 
 
 if __name__ == "__main__":

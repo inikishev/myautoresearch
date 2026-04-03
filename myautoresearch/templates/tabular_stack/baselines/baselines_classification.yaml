@@ -1,0 +1,11 @@
+LR:
+    file: logistic_regression.py
+    object: estimator
+    name: LR
+    description: Logistic regression baseline
+
+XGB:
+    file: xgb_classifier.py
+    object: estimator
+    name: XGB
+    description: 'XGB baseline with following hyperparameters: tree_method="hist", enable_categorical=True, device="cuda", seed=0'

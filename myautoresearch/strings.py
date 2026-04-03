@@ -34,13 +34,13 @@ ModifierLiteral = Literal["explore", "exploit", "novel", "analyse", "unusual", "
 MODIFIER_INSTRUCTION = "This session was started with `{modifier_name}` instruction. You must follow this instruction very closely as it will help future sessions:\n{modifier}"
 
 MODIFIERS: dict[ModifierLiteral, str] = {
-    "explore": "The goal of this session is exploration. Instead of incremental modifications to existing solutions from the leaderboard, you must try approaches that have not been explored yet.",
+    "explore": "The goal of this session is exploration. Instead of incremental modifications to existing solutions from the leaderboard, you must try approaches that have not been explored yet. Your main goal is not to beat the leader, but to thorougly explore the problem's search space, try many diverse approaches and submit the most promising one.",
     "exploit": "The goal of this session is exploitation - you must analyze the leaderboard and focus on the most promising approaches.",
     "novel": "The goal of this session is to explore novel approaches. Instead of trying known solutions, you must design your own algorithm from scratch. It should be new, not a modification of an existing solution.",
     "analyse": "The goal of this session is to perform a deep analysis of the problem. You must analyze the problem thoroughly before designing a solution, find new approaches that could be missed by tackling the problem head-on.",
     "unusual": "The goal of this session is to explore wild and unusual solutions. You must design and evaluate the most unconventional solutions you can come up with.",
     "research": "The goal of this session is research. You must use your web tools to search for latest and most efficient algorithms - look up studies, benchmarks, implementations, and evaluate the most promising approaches.",
-    "inspect": "The goal of this session is inspection. You must focus on manually evaluating and debugging solutions  through comprehensive testing using custom evaluation scripts in order to identify and bottlenecks and areas of improvement. Analyze best solutions in the leaderboard as well as your ideas. Compare your results with `mar evaluate` to see how your evaluation methodology maps onto the final score. Design better solutions based on your comprehensive analysis. Note: but mindful of time within your custom evaluation scripts, use appropirate timeouts."
+    "inspect": "The goal of this session is inspection. You must focus on manually evaluating and debugging solutions  through comprehensive testing using custom evaluation scripts in order to identify and bottlenecks and areas of improvement. Analyze best solutions in the leaderboard as well as your ideas. Compare your results with `mar evaluate` to see how your evaluation methodology maps onto the final score. Design better solutions based on your comprehensive analysis. Note: be mindful of time within your custom evaluation scripts, use appropirate timeouts."
 }
 
 EVALUATE_TEMPLATE = """from click import echo # use instead of print
