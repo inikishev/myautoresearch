@@ -15,7 +15,7 @@ Useful optional flags for `mar evaluate`:
 --extra-files file1.py file2.py: Include additional files needed for evaluation (e.g., helper modules, data files).
 --overwrite: Overwrite an existing unsubmitted run with the same name.
 
-After running the command, the results of evaluation will be displayed in the terminal. You can also display results manually by running `mar leaderboard`. Keep trying to improve your algorithm and beat the current best run.
+After running the command, the results of evaluation will be displayed in the terminal. You can also display results manually by running `mar leaderboard`. Keep improving your algorithm and try to beat the current best run, and pave the way for future sessions to get even better results.
 
 ## Submitting a run
 

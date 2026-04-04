@@ -171,6 +171,8 @@ def mar_display_leaderboard(status: Literal["unsubmitted", "submitted", "discard
         for r in runs:
             r.status = 'discarded'
 
+    runs = [r for r in runs if r.info.get("feasible", False) > 0]
+
     current_run = None
     if current_run_dir is not None:
         current_run = _utils.FinishedRun(current_run_dir)
@@ -421,7 +423,7 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
     for item in new_items:
 
         # Skip system files like __pycache__
-        if not (item.startswith((".", "__")) or item in ("debug.log", "logger.npz")):
+        if not (item.startswith((".", "__")) or item in ("debug.log", "logger.npz", "metrics.json", "feasibility.json")):
 
             tgt_path = (root / work_dir_name / item)
 
@@ -430,8 +432,8 @@ def mar_evaluate(file: str, object: str, name: str, description: str, extra_file
                     if os.path.isfile(item): tgt_path.unlink()
                     else: shutil.rmtree(tgt_path)
 
-                if os.path.isfile(item): shutil.copy2(eval_dir / item, tgt_path)
-                elif os.path.isdir(item): shutil.copytree(eval_dir / item, tgt_path)
+                if os.path.isfile(eval_dir / item): shutil.copy2(eval_dir / item, tgt_path)
+                elif os.path.isdir(eval_dir / item): shutil.copytree(eval_dir / item, tgt_path)
 
             except Exception as e:
                 warnings.warn(f"WARNING: Failed to copy {eval_dir / item} to {tgt_path}:\n{e}")
