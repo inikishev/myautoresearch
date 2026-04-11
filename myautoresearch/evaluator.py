@@ -90,25 +90,27 @@ class Evaluator(ABC):
         _utils.write_json(self._feasibility, "feasibility.json")
 
 def run(evaluator: Evaluator):
-    root = Path(evaluator._args.root)
+    with _utils.no_stack_trace():
 
-    if (root / "eval.lock").exists():
-        _utils.cleanup_orphans()
+        root = Path(evaluator._args.root)
 
-    try:
-        with open(root / 'eval.lock', 'w', encoding='utf-8') as f:
-            # Create a lock, and make sure no existing evaluation scripts are running
-            try:
-                fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except BlockingIOError:
-                _utils.cleanup_orphans()
+        if (root / "eval.lock").exists():
+            _utils.cleanup_orphans()
+
+        try:
+            with open(root / 'eval.lock', 'w', encoding='utf-8') as f:
+                # Create a lock, and make sure no existing evaluation scripts are running
                 try:
                     fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                except BlockingIOError as e:
-                    raise RuntimeError("Another evaluation script is already running and couldn't be terminated.") from e
+                except BlockingIOError:
+                    _utils.cleanup_orphans()
+                    try:
+                        fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    except BlockingIOError as e:
+                        raise RuntimeError("Another evaluation script is already running and couldn't be terminated.") from e
 
-            evaluator.evaluate()
-            evaluator._save()
+                evaluator.evaluate()
+                evaluator._save()
 
-    finally:
-        os.remove(root / 'eval.lock')
+        finally:
+            os.remove(root / 'eval.lock')

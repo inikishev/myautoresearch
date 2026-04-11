@@ -1,4 +1,4 @@
-import myautoml as ma
+import mytabular as mt
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import make_pipeline
 
@@ -6,7 +6,8 @@ from sklearn.pipeline import make_pipeline
 estimator = make_pipeline(
 
     # This handles scaling, imputation, one-hot encoding, etc depending on dataset
-    ma.pl.ToNumpy(
+    # and returns a numpy array.
+    mt.pl.ToNumpy(
         label = None,
         scale = True,
         impute = True,

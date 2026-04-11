@@ -1,5 +1,6 @@
 """Commands, they shouldn't be used directly, but rather through cli."""
 import os
+import random
 import shutil
 import signal
 import subprocess
@@ -275,9 +276,31 @@ def mar_prompt(modifier: strings.ModifierLiteral | None = None):
 
     task = _utils.read_text(root / "task.md").strip()
 
-    s = f"{task}\n\n\n{strings.MAR_INSTRUCTION.strip()}\n\n\n# Runs\n\n{mar_summary()}\n\n{strings.AFTER_SUMMARY_RUNS}"
+    modifier_description = None
+
+    if modifier == "random":
+        modifier = random.choice(list(strings.MODIFIERS.keys()) + [None])
+
+    if modifier is None:
+        if "modifier" in config:
+            v = config["modifier"]
+            if isinstance(v, str):
+                if len(v.strip()) > 0:
+                    modifier = v.lower().strip() # type:ignore
+
+            else:
+                modifier = v["name"].strip()
+                modifier_description = v["description"].strip()
+
+
+    if modifier_description is None:
+        if modifier is not None:
+            modifier_description = strings.MODIFIERS[modifier] # type:ignore
+
+    s = f"{strings.INTRO.strip()}\n\n{task}\n\n\n{strings.INSTRUCTION.strip()}\n\n\n# Runs\n\n{mar_summary()}\n\n{strings.AFTER_SUMMARY_RUNS}\n\n\n# Suggestions\n{strings.SUGGESTIONS}"
+
     if modifier is not None:
-        s = f"{s}\n\n{strings.MODIFIER_INSTRUCTION.format(modifier_name=modifier, modifier=strings.MODIFIERS[modifier]).strip()}"
+        s = f"{s}\n\n{strings.MODIFIER_INSTRUCTION.format(name=modifier, description=modifier_description).strip()}"
 
     return s
 

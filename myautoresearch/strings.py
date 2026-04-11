@@ -1,6 +1,14 @@
 from typing import Literal
 
-MAR_INSTRUCTION = """# Instructions
+
+INTRO = """A new autoresearch session has been started. You are going to work on the prolem specified below, trying to find a better solution and gathering useful information. You will then sumbit one attempt along with a summary of your experiments. In the future sessions other AI agents will see your submitted run and use your insights to find an even better solution. Make sure you make the most out of your session, and advance the autoresearch loop as much as you can."""
+
+SUGGESTIONS = """- Work under the assumption that there are solutions significantly better than the current leaderboard. A tiny change resulting in a negligible score improvement is not helpful for the autoresearch loop.
+- Being creative and trying out new ideas will be much more helpful to future agents.
+- Theoretical insights, derivations and experiments can also help the autoresearch loop, as long as they are not trivial.
+- Your names, descriptions, and summaries are intended for AI agents, not humans, and don't have to be human-readable. Pack maximum information in less space and tokens."""
+
+INSTRUCTION = """# Instructions
 
 ## Evaluating a run
 
@@ -29,9 +37,9 @@ Only submit one run per session. If you've changed your mind and want to submit 
 
 AFTER_SUMMARY_RUNS = "If you'd like to see submitted runs again, you can use `mar summary` command. You can also load the source code of any run using `mar load <name>`, but use it only if necessary."
 
-ModifierLiteral = Literal["explore", "exploit", "novel", "analyse", "unusual", "research", "inspect"]
+ModifierLiteral = Literal["explore", "exploit", "novel", "analyse", "unusual", "research", "inspect", "random"]
 
-MODIFIER_INSTRUCTION = "This session was started with `{modifier_name}` instruction. You must follow this instruction very closely as it will help future sessions:\n{modifier}"
+MODIFIER_INSTRUCTION = "This session was started with `{name}` instruction. You must follow this instruction very closely as it will help future sessions:\n{description}"
 
 MODIFIERS: dict[ModifierLiteral, str] = {
     "explore": "The goal of this session is exploration. Instead of incremental modifications to existing solutions from the leaderboard, you must try approaches that have not been explored yet. Your main goal is not to beat the leader, but to thorougly explore the problem's search space, try many diverse approaches and submit the most promising one.",
